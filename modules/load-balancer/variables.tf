@@ -9,19 +9,19 @@ variable "tags" {
 }
 
 variable "internal" {
-  type    = bool
+  type = bool
 }
 
 variable "vpc_id" {
-  type    = string
+  type = string
 }
 
 variable "subnet_ids" {
-  type    = list(string)
+  type = list(string)
 }
 
 variable "security_group_ids" {
-  type    = list(string)
+  type = list(string)
 }
 
 variable "container_port" {

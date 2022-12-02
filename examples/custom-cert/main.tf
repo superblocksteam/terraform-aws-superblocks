@@ -14,9 +14,9 @@ variable "superblocks_agent_key" {
 }
 
 module "terraform_aws_superblocks" {
-  source        = "../../"
-  region        = var.region
-  lb_internal   = false
+  source      = "../../"
+  region      = var.region
+  lb_internal = false
 
   # Set 'create_certificate' to false and provide your custom certificate arn
   # Certificate can be requested from AWS Certificate Manager
@@ -26,10 +26,10 @@ module "terraform_aws_superblocks" {
 
   superblocks_agent_key         = var.superblocks_agent_key
   superblocks_agent_environment = "dev"
-  #superblocks_agent_image       = "ghcr.io/superblocksteam/superblocks-agent-simplified:ts-opa-simplification"
-  #superblocks_agent_port        = "8020"
   superblocks_agent_image       = "ghcr.io/stefanprodan/podinfo"
   superblocks_agent_port        = "9898"
+  #superblocks_agent_image       = "ghcr.io/superblocksteam/superblocks-agent-simplified:ts-opa-simplification"
+  #superblocks_agent_port        = "8020"
 }
 
 # Once the agent is deployed, create a CNAME record

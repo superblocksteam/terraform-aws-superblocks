@@ -9,7 +9,7 @@ variable "tags" {
 }
 
 variable "zone_name" {
-  type    = string
+  type = string
 }
 
 variable "record_name" {
@@ -18,9 +18,9 @@ variable "record_name" {
 }
 
 variable "alias_name" {
-  type    = string
+  type = string
 }
 
 variable "alias_zone_id" {
-  type    = string
+  type = string
 }

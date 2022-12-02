@@ -17,7 +17,7 @@ variable "tags" {
 }
 
 variable "subnet_ids" {
-  type    = list(string)
+  type = list(string)
   validation {
     condition     = length(var.subnet_ids) > 0
     error_message = "Subnet ids are required for ECS service."
@@ -25,7 +25,7 @@ variable "subnet_ids" {
 }
 
 variable "security_group_ids" {
-  type    = list(string)
+  type = list(string)
   validation {
     condition     = length(var.security_group_ids) > 0
     error_message = "Security group ids are required for ECS service."

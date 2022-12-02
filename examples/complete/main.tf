@@ -24,7 +24,7 @@ module "vpc" {
 }
 
 locals {
-  vpc_id = module.vpc.id
+  vpc_id         = module.vpc.id
   lb_subnet_ids  = module.vpc.lb_subnet_ids
   ecs_subnet_ids = module.vpc.ecs_subnet_ids
 }
@@ -101,10 +101,10 @@ module "ecs" {
 
   container_cpu    = "512"
   container_memory = "1024"
-  #container_image  = "ghcr.io/superblocksteam/superblocks-agent-simplified:ts-opa-simplification"
-  #container_port   = "8020"
   container_image  = "ghcr.io/stefanprodan/podinfo"
   container_port   = "9898"
+  #container_image  = "ghcr.io/superblocksteam/superblocks-agent-simplified:ts-opa-simplification"
+  #container_port   = "8020"
 
   container_environment = <<ENV
     [

@@ -14,19 +14,19 @@ variable "superblocks_agent_key" {
 }
 
 module "terraform_aws_superblocks" {
-  source        = "../../"
-  region        = var.region
+  source = "../../"
+  region = var.region
   # Use internal load balancer, so that it's only accessible in the same VPC
-  lb_internal   = true
-  zone_name     = "clarkthekoala.com"
-  record_name   = "example-simple-private-agent"
+  lb_internal = true
+  zone_name   = "clarkthekoala.com"
+  record_name = "example-simple-private-agent"
 
   superblocks_agent_key         = var.superblocks_agent_key
   superblocks_agent_environment = "dev"
-  #superblocks_agent_image       = "ghcr.io/superblocksteam/superblocks-agent-simplified:ts-opa-simplification"
-  #superblocks_agent_port        = "8020"
   superblocks_agent_image       = "ghcr.io/stefanprodan/podinfo"
   superblocks_agent_port        = "9898"
+  #superblocks_agent_image       = "ghcr.io/superblocksteam/superblocks-agent-simplified:ts-opa-simplification"
+  #superblocks_agent_port        = "8020"
 }
 
 output "vpc_id" {

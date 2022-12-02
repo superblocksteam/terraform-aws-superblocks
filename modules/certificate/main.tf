@@ -3,7 +3,7 @@ locals {
 }
 
 data "aws_route53_zone" "superblocks" {
-  name  = var.zone_name
+  name = var.zone_name
 }
 
 resource "aws_route53_record" "superblocks" {

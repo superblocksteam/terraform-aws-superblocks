@@ -9,7 +9,7 @@ variable "tags" {
 }
 
 variable "vpc_id" {
-  type    = string
+  type = string
 }
 
 variable "ingress_cidr_blocks" {
