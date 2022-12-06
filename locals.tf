@@ -1,6 +1,7 @@
 locals {
+  env = var.superblocks_agent_environment == "*" ? "any" : var.superblocks_agent_environment
   tags = merge(var.tags, {
-    superblocks_agent_environment = var.superblocks_agent_environment
+    superblocks_agent_environment = local.env
   })
 
   vpc_id         = var.create_vpc ? module.vpc[0].id : var.vpc_id

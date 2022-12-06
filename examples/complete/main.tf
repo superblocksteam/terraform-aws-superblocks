@@ -101,10 +101,8 @@ module "ecs" {
 
   container_cpu    = "512"
   container_memory = "1024"
-  container_image  = "ghcr.io/stefanprodan/podinfo"
-  container_port   = "9898"
-  #container_image  = "ghcr.io/superblocksteam/superblocks-agent-simplified:ts-opa-simplification"
-  #container_port   = "8020"
+  container_image  = "ghcr.io/superblocksteam/agent"
+  container_port   = "8020"
 
   container_environment = <<ENV
     [
@@ -115,7 +113,7 @@ module "ecs" {
       { "name": "SUPERBLOCKS_AGENT_KEY", "value": "${var.superblocks_agent_key}" },
       { "name": "SUPERBLOCKS_CONTROLLER_DISCOVERY_ENABLED", "value": "false" },
       { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
-      { "name": "SUPERBLOCKS_AGENT_ENVIRONMENT", "value": "dev" },
+      { "name": "SUPERBLOCKS_AGENT_ENVIRONMENT", "value": "*" },
       { "name": "SUPERBLOCKS_AGENT_PORT", "value": "8020" }
     ]
   ENV

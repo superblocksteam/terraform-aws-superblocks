@@ -20,11 +20,8 @@ variable "superblocks_agent_key" {
 }
 
 variable "superblocks_agent_environment" {
-  type = string
-  validation {
-    condition     = length(var.superblocks_agent_environment) > 0
-    error_message = "The agent environment cannot be null."
-  }
+  type    = string
+  defaule = "*"
 }
 
 variable "superblocks_agent_host_url" {
@@ -39,7 +36,7 @@ variable "superblocks_agent_port" {
 
 variable "superblocks_agent_image" {
   type    = string
-  default = "ghcr.io/superblocksteam/superblocks-agent-simplified"
+  default = "ghcr.io/superblocksteam/agent"
 }
 
 variable "superblocks_server_url" {

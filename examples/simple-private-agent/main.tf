@@ -21,12 +21,7 @@ module "terraform_aws_superblocks" {
   zone_name   = "clarkthekoala.com"
   record_name = "example-simple-private-agent"
 
-  superblocks_agent_key         = var.superblocks_agent_key
-  superblocks_agent_environment = "dev"
-  superblocks_agent_image       = "ghcr.io/stefanprodan/podinfo"
-  superblocks_agent_port        = "9898"
-  #superblocks_agent_image       = "ghcr.io/superblocksteam/superblocks-agent-simplified:ts-opa-simplification"
-  #superblocks_agent_port        = "8020"
+  superblocks_agent_key = var.superblocks_agent_key
 }
 
 output "vpc_id" {
