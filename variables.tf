@@ -21,7 +21,7 @@ variable "superblocks_agent_key" {
 
 variable "superblocks_agent_environment" {
   type    = string
-  defaule = "*"
+  default = "*"
 }
 
 variable "superblocks_agent_host_url" {
