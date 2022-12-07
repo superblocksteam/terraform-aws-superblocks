@@ -1,27 +1,22 @@
 #################################################################
 # Common
 #################################################################
-variable "region" {
-  type = string
-  validation {
-    condition     = length(var.region) > 0
-    error_message = "Variable `region` cannot null."
-  }
-}
-
 variable "superblocks_agent_key" {
   type      = string
   sensitive = true
   validation {
-    # TODO: use regexp to validate agent key
     condition     = length(var.superblocks_agent_key) > 10
     error_message = "The agent key is invalid."
   }
 }
 
 variable "superblocks_agent_environment" {
-  type    = string
-  default = "*"
+  type        = string
+  default     = "*"
+  description = <<EOF
+    Use this varible to differentiate Superblocks Agent running environment.
+    Valid values are "*", "staging" and "production"
+  EOF
 }
 
 variable "superblocks_agent_host_url" {
@@ -30,28 +25,33 @@ variable "superblocks_agent_host_url" {
 }
 
 variable "superblocks_agent_port" {
-  type    = number
-  default = "8020"
+  type        = number
+  default     = "8020"
+  description = "The port number used by Superblocks Agent container instance"
 }
 
 variable "superblocks_agent_image" {
-  type    = string
-  default = "ghcr.io/superblocksteam/agent"
+  type        = string
+  default     = "ghcr.io/superblocksteam/agent"
+  description = "The docker image used by Superblocks Agent container instance"
 }
 
 variable "superblocks_server_url" {
-  type    = string
-  default = "https://app.superblocks.com"
+  type        = string
+  default     = "https://app.superblocks.com"
+  description = "Superblocks server url"
 }
 
 variable "name_prefix" {
-  type    = string
-  default = "superblocks"
+  type        = string
+  default     = "superblocks"
+  description = "This will be prepended to the name of each AWS resource created by this module"
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  type        = map(string)
+  default     = {}
+  description = "A series of tags that will be added to each AWS resource created by this module"
 }
 
 variable "deploy_in_ecs" {
@@ -69,7 +69,7 @@ variable "deploy_in_ecs" {
 #################################################################
 variable "create_vpc" {
   type        = bool
-  default     = true
+  default     = false
   description = "Whether to create default VPC or not."
 }
 
@@ -117,14 +117,14 @@ variable "create_lb" {
 
 variable "lb_internal" {
   type        = bool
-  default     = false
+  default     = true
   description = "When it's set to false, load balancer is accessible in public network."
 }
 
 #################################################################
-# Certificate
+# DNS & Certificate
 #################################################################
-variable "create_certificate" {
+variable "create_dns" {
   type        = bool
   default     = true
   description = "Whether to create default HTTPS certificate or not."
@@ -144,8 +144,6 @@ variable "record_name" {
   default     = "superblocks-agent"
   description = <<EOF
     This is the record name for Superblocks Agent.
-    With "record_name" and "dns_name" being set,
-    the full agent domain will be "superblocks-agent.mydomain.com"
     It's required if you want Superblocks to create the certificate.
   EOF
 }
@@ -189,4 +187,28 @@ variable "lb_target_group_arn" {
     This is the arn of load balancer target group that's used for Superblocks Agent.
     Required if 'create_lb' is set to false.
   EOF
+}
+
+variable "container_cpu" {
+  type        = number
+  default     = "512"
+  description = "Amount of CPU units. 1024 units = 1 vCPU(virtual CPU core)"
+}
+
+variable "container_memory" {
+  type        = number
+  default     = "1024"
+  description = "Amount of memory in MiB"
+}
+
+variable "container_min_capacity" {
+  type        = number
+  default     = "1"
+  description = "Minimum number of container instances"
+}
+
+variable "container_max_capacity" {
+  type        = number
+  default     = "5"
+  description = "Maximum number of container instances"
 }

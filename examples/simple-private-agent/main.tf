@@ -9,15 +9,14 @@ variable "region" {
 
 variable "superblocks_agent_key" {
   type      = string
-  default   = "YOUR AGENT KEY"
+  default   = "<SUPERBLOCKS_AGENT_KEY>"
   sensitive = true
 }
 
 module "terraform_aws_superblocks" {
   source = "../../"
-  region = var.region
-  # Use internal load balancer, so that it's only accessible in the same VPC
-  lb_internal = true
+
+  create_vpc  = true
   zone_name   = "clarkthekoala.com"
   record_name = "example-simple-private-agent"
 
@@ -38,6 +37,10 @@ output "ecs_subnet_ids" {
 
 output "security_group_ids" {
   value = module.terraform_aws_superblocks.security_group_ids
+}
+
+output "lb_dns_name" {
+  value = module.terraform_aws_superblocks.lb_dns_name
 }
 
 output "agent_host_url" {

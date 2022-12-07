@@ -30,11 +30,11 @@ module "lb" {
 }
 
 #################################################################
-# Certificate
+# DNS & Certificate
 #################################################################
-module "certificate" {
-  count  = var.create_certificate ? 1 : 0
-  source = "./modules/certificate"
+module "dns" {
+  count  = var.create_dns ? 1 : 0
+  source = "./modules/dns"
 
   zone_name     = var.zone_name
   record_name   = var.record_name
@@ -49,7 +49,7 @@ module "ecs" {
   count  = var.deploy_in_ecs ? 1 : 0
   source = "./modules/ecs"
 
-  region             = var.region
+  region             = local.region
   subnet_ids         = local.ecs_subnet_ids
   security_group_ids = local.security_group_ids
   target_group_arn   = local.lb_target_group_arn
@@ -61,7 +61,6 @@ module "ecs" {
       { "name": "__SUPERBLOCKS_AGENT_SERVER_URL", "value": "${var.superblocks_server_url}" },
       { "name": "__SUPERBLOCKS_WORKER_LOCAL_ENABLED", "value": "true" },
       { "name": "SUPERBLOCKS_WORKER_TLS_INSECURE", "value": "true" },
-      { "name": "SUPERBLOCKS_WORKER_METRICS_PORT", "value": "9091" },
       { "name": "SUPERBLOCKS_AGENT_KEY", "value": "${var.superblocks_agent_key}" },
       { "name": "SUPERBLOCKS_CONTROLLER_DISCOVERY_ENABLED", "value": "false" },
       { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },

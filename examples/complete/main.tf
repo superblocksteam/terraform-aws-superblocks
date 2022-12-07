@@ -66,8 +66,8 @@ locals {
 }
 
 # Create your own certificate or use the sub-module in this package
-module "certificate" {
-  source = "../../modules/certificate"
+module "dns" {
+  source = "../../modules/dns"
 
   zone_name     = "clarkthekoala.com"
   record_name   = "example-complete"
@@ -78,7 +78,7 @@ module "certificate" {
 }
 
 locals {
-  certificate_arn = module.certificate.arn
+  certificate_arn = module.dns.certificate_arn
   agent_host_url  = "https://example-complete.clarkthekoala.com"
 }
 
@@ -86,7 +86,7 @@ locals {
 variable "superblocks_agent_key" {
   type      = string
   sensitive = true
-  default   = "YOUR AGENT KEY"
+  default   = "<SUPERBLOCKS_AGENT_KEY>"
 }
 
 module "ecs" {
@@ -124,4 +124,8 @@ module "ecs" {
   container_scale_up_when_cpu_pct_above    = "50"
   container_scale_up_when_memory_pct_above = "50"
   ecs_cluster_capacity_providers           = ["FARGATE"]
+}
+
+output "agent_host_url" {
+  value = local.agent_host_url
 }
