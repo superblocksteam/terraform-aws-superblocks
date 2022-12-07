@@ -54,9 +54,9 @@ module "ecs" {
   security_group_ids = local.security_group_ids
   target_group_arn   = local.lb_target_group_arn
 
-  container_port        = var.superblocks_agent_port
-  container_image       = var.superblocks_agent_image
-  container_environment = <<ENV
+  container_port         = var.superblocks_agent_port
+  container_image        = var.superblocks_agent_image
+  container_environment  = <<ENV
     [
       { "name": "__SUPERBLOCKS_AGENT_SERVER_URL", "value": "${var.superblocks_server_url}" },
       { "name": "__SUPERBLOCKS_WORKER_LOCAL_ENABLED", "value": "true" },
@@ -68,4 +68,8 @@ module "ecs" {
       { "name": "SUPERBLOCKS_AGENT_PORT", "value": "${var.superblocks_agent_port}" }
     ]
   ENV
+  container_cpu          = var.container_cpu
+  container_memory       = var.container_memory
+  container_min_capacity = var.container_min_capacity
+  container_max_capacity = var.container_max_capacity
 }

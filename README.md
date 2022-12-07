@@ -25,7 +25,7 @@ Check out this https://developer.hashicorp.com/terraform/downloads for more deta
 
 #### Create your Terraform file
 
-To get started, you'll need a superblocks_agent_key. To generate an agent key, go to the [Superblocks On-Premise Agent Setup Wizard](https://app.superblocks.com/opas)
+To get started, you'll need a `superblocks_agent_key`. To generate an agent key, go to the [Superblocks On-Premise Agent Setup Wizard](https://app.superblocks.com/opas)
 ```
 module "terraform_aws_superblocks" {
   source  = "superblocksteam/terraform-aws-superblocks"
