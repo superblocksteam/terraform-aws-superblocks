@@ -90,7 +90,7 @@ To find the certificate's ARN use `aws acm list-certificates` or by finding the 
 #### Instance Sized
 Configure the CPU & memory limits allocated to your ECS instances use
 ```
-container_cpu = 4
+container_cpu = 1024
 container_memory = 4096
 ```
 
