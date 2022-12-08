@@ -28,8 +28,8 @@ Check out this https://developer.hashicorp.com/terraform/downloads for more deta
 To get started, you'll need a `superblocks_agent_key`. To generate an agent key, go to the [Superblocks On-Premise Agent Setup Wizard](https://app.superblocks.com/opas)
 ```
 module "terraform_aws_superblocks" {
-  source  = "superblocksteam/terraform-aws-superblocks"
-  version = ">=1.0"
+  source  = "superblocksteam/superblocks/aws"
+  version = ">=0.1.0"
 
   vpc_id         = "<VPC_ID>"
   lb_subnet_ids  = "<LIST_OF_SUBNET_IDS_FOR_LOAD_BALANCER>"
