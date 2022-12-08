@@ -18,5 +18,5 @@ locals {
   lb_target_group_arn = var.create_lb ? module.lb[0].target_group_arn : var.lb_target_group_arn
 
   certificate_arn = var.create_dns ? module.dns[0].certificate_arn : var.certificate_arn
-  agent_host_url  = var.create_dns ? "https://${var.record_name}.${var.zone_name}" : var.superblocks_agent_host_url
+  agent_host_url  = "https://${var.subdomain}.${var.domain}"
 }

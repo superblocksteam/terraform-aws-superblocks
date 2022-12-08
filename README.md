@@ -34,8 +34,8 @@ module "terraform_aws_superblocks" {
   vpc_id         = "<VPC_ID>"
   lb_subnet_ids  = "<LIST_OF_SUBNET_IDS_FOR_LOAD_BALANCER>"
   ecs_subnet_ids = "<LIST_OF_SUBNET_IDS_FOR_SUPERBLOCKS_AGENT_ECS_CLUSTER>"
-  zone_name      = "<ROUTE53_ZONE_NAME>"
-  record_name    = "<DNS_RECORD_NAME_FOR_SUPERBLOCKS_AGENT>"
+  domain         = "<DOMAIN>"
+  subdomain      = "<SUBDOMAIN_FOR_SUPERBLOCKS_AGENT>"
 
   superblocks_agent_key = <SUPERBLOCKS_AGENT_KEY>""
 }
@@ -84,7 +84,6 @@ If you use Route53 for domain management you can use the Terraform module to gen
 ```
 create_dns = false
 certificate_arn = "<YOUR_CERTIFICATE_ARN>"
-superblocks_agent_host_url = "<SUPERBLOCKS_AGENT_HOST_URL>"
 ```
 To find the certificate's ARN use `aws acm list-certificates` or by finding the Certificate in the AWS management console. For additional instructions on creating a certificate manually see [Issue and manage certificates](https://docs.aws.amazon.com/acm/latest/userguide/gs.html).
 
@@ -111,12 +110,6 @@ variable "superblocks_agent_environment" {
     Use this varible to differentiate Superblocks Agent running environment.
     Valid values are "*", "staging" and "production"
   EOF
-}
-
-variable "superblocks_agent_port" {
-  type        = number
-  default     = "8020"
-  description = "The port number used by Superblocks Agent container instance"
 }
 
 variable "superblocks_agent_image" {

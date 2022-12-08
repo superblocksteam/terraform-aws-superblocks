@@ -16,9 +16,9 @@ variable "superblocks_agent_key" {
 module "terraform_aws_superblocks" {
   source = "../../"
 
-  create_vpc  = true
-  zone_name   = "clarkthekoala.com"
-  record_name = "example-simple-private-agent"
+  create_vpc = true
+  domain     = "clarkthekoala.com"
+  subdomain  = "example-simple-private-agent"
 
   superblocks_agent_key = var.superblocks_agent_key
 }

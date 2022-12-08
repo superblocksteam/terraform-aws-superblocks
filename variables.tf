@@ -19,11 +19,6 @@ variable "superblocks_agent_environment" {
   EOF
 }
 
-variable "superblocks_agent_host_url" {
-  type    = string
-  default = ""
-}
-
 variable "superblocks_agent_port" {
   type        = number
   default     = "8020"
@@ -130,20 +125,23 @@ variable "create_dns" {
   description = "Whether to create default HTTPS certificate or not."
 }
 
-variable "zone_name" {
+variable "domain" {
   type        = string
-  default     = null
   description = <<EOF
-    This should be the name of a Route53 hosted zone in the AWS account.
+    This is domain name and the name of a Route53 hosted zone in the AWS account.
     It's required if you want Superblocks to create the certificate.
   EOF
+  validation {
+    condition     = length(var.domain) > 0
+    error_message = "Variable `domain` is required."
+  }
 }
 
-variable "record_name" {
+variable "subdomain" {
   type        = string
   default     = "superblocks-agent"
   description = <<EOF
-    This is the record name for Superblocks Agent.
+    This is the subdomain for Superblocks Agent.
     It's required if you want Superblocks to create the certificate.
   EOF
 }

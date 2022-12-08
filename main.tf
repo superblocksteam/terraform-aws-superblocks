@@ -36,8 +36,8 @@ module "dns" {
   count  = var.create_dns ? 1 : 0
   source = "./modules/dns"
 
-  zone_name     = var.zone_name
-  record_name   = var.record_name
+  zone_name     = var.domain
+  record_name   = var.subdomain
   alias_name    = local.lb_dns_name
   alias_zone_id = local.lb_zone_id
 }

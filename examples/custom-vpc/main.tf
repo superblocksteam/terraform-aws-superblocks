@@ -35,8 +35,8 @@ module "terraform_aws_superblocks" {
   vpc_id         = local.vpc_id
   lb_subnet_ids  = local.lb_subnet_ids
   ecs_subnet_ids = local.ecs_subnet_ids
-  zone_name      = "clarkthekoala.com"
-  record_name    = "custom-vpc"
+  domain         = "clarkthekoala.com"
+  subdomain      = "custom-vpc"
 
   superblocks_agent_key = var.superblocks_agent_key
 }

@@ -16,13 +16,13 @@ variable "superblocks_agent_key" {
 module "terraform_aws_superblocks" {
   source      = "../../"
   lb_internal = false
-  create_vpc  = true
 
-  # Set 'create_dns' to false and provide your custom certificate arn
-  # Certificate can be requested from AWS Certificate Manager
-  create_dns                 = false
-  certificate_arn            = "<YOUR_CERTIFICATE_ARN>"
-  superblocks_agent_host_url = "https://custom-cert.clarkthekoala.com"
+  create_vpc = true
+  domain     = "clarkthekoala.com"
+  subdomain  = "custom-cert"
+
+  create_dns      = false
+  certificate_arn = "<YOUR_CERTIFICATE_ARN>"
 
   superblocks_agent_key = var.superblocks_agent_key
 }
