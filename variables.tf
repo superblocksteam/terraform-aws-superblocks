@@ -189,13 +189,13 @@ variable "lb_target_group_arn" {
 
 variable "container_cpu" {
   type        = number
-  default     = "512"
+  default     = "1024"
   description = "Amount of CPU units. 1024 units = 1 vCPU(virtual CPU core)"
 }
 
 variable "container_memory" {
   type        = number
-  default     = "1024"
+  default     = "4096"
   description = "Amount of memory in MiB"
 }
 
