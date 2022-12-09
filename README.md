@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/logo.png" height="60"/>
+  <img src="https://raw.githubusercontent.com/superblocksteam/terraform-aws-superblocks/main/assets/logo.png" height="60"/>
 </p>
 
 <h1 align="center">Superblocks Terraform Module - AWS</h1>
@@ -31,13 +31,13 @@ module "terraform_aws_superblocks" {
   source  = "superblocksteam/superblocks/aws"
   version = ">=0.1.0"
 
-  vpc_id         = "<VPC_ID>"
-  lb_subnet_ids  = "<LIST_OF_SUBNET_IDS_FOR_LOAD_BALANCER>"
-  ecs_subnet_ids = "<LIST_OF_SUBNET_IDS_FOR_SUPERBLOCKS_AGENT_ECS_CLUSTER>"
-  domain         = "<DOMAIN>"
-  subdomain      = "<SUBDOMAIN_FOR_SUPERBLOCKS_AGENT>"
+  vpc_id         = "[VPC_ID]"
+  lb_subnet_ids  = "[LIST_OF_SUBNET_IDS_FOR_LOAD_BALANCER]"
+  ecs_subnet_ids = "[LIST_OF_SUBNET_IDS_FOR_SUPERBLOCKS_AGENT_ECS_CLUSTER]"
+  domain         = "[DOMAIN]"
+  subdomain      = "[SUBDOMAIN_FOR_SUPERBLOCKS_AGENT]"
 
-  superblocks_agent_key = <SUPERBLOCKS_AGENT_KEY>""
+  superblocks_agent_key = "[SUPERBLOCKS_AGENT_KEY]"
 }
 ```
 To find your VPC use `aws ec2 describe-vpcs` or by finding them in the AWS management console.
@@ -106,10 +106,10 @@ container_max_capacity = 10
 variable "superblocks_agent_environment" {
   type        = string
   default     = "*"
-  description = <<EOF
+  description = <<ENVIRONMENT
     Use this varible to differentiate Superblocks Agent running environment.
     Valid values are "*", "staging" and "production"
-  EOF
+  ENVIRONMENT
 }
 
 variable "superblocks_agent_image" {
