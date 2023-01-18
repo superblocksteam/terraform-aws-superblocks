@@ -1,3 +1,7 @@
+locals {
+  node_heap = var.container_memory * 0.75
+}
+
 #################################################################
 # VPC
 #################################################################
@@ -65,7 +69,8 @@ module "ecs" {
       { "name": "SUPERBLOCKS_CONTROLLER_DISCOVERY_ENABLED", "value": "false" },
       { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
       { "name": "SUPERBLOCKS_AGENT_ENVIRONMENT", "value": "${var.superblocks_agent_environment}" },
-      { "name": "SUPERBLOCKS_AGENT_PORT", "value": "${var.superblocks_agent_port}" }
+      { "name": "SUPERBLOCKS_AGENT_PORT", "value": "${var.superblocks_agent_port}" },
+      { "name": "NODE_OPTIONS", "value: "--max_old_space_size=${local.node_heap}"}
     ]
   ENV
   container_cpu          = var.container_cpu
