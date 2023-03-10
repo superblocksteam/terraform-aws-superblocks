@@ -62,6 +62,10 @@ variable "deploy_in_ecs" {
 variable "superblocks_agent_data_domain" {
   type        = string
   default     = "app.superblocks.com"
+  validation {
+    condition     = contains(["app.superblocks.com", "eu.superblocks.com"], var.superblocks_agent_data_domain)
+    error_message = "The data domain is invalid. Please use 'app.superblocks.com' or 'eu.superblocks.com'."
+  }
   description = "The domain name for the specific Superblocks region that hosts your data."
 }
 

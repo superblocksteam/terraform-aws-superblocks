@@ -49,7 +49,7 @@ If you are in the **[EU region](https://eu.superblocks.com)**, ensure that
 superblocks_agent_data_domain = "eu.superblocks.com"
 ```
 
-is set in your configuration.
+is set in your configuration in the module block.
 
 To find your VPC use `aws ec2 describe-vpcs` or by finding them in the AWS management console.
 
