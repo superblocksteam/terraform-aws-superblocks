@@ -70,6 +70,7 @@ module "ecs" {
       { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
       { "name": "SUPERBLOCKS_AGENT_ENVIRONMENT", "value": "${var.superblocks_agent_environment}" },
       { "name": "SUPERBLOCKS_AGENT_PORT", "value": "${var.superblocks_agent_port}" },
+      { "name": "SUPERBLOCKS_AGENT_DATA_DOMAIN", "value": "${var.superblocks_agent_data_domain}" },
       { "name": "NODE_OPTIONS", "value: "--max_old_space_size=${local.node_heap}"}
     ]
   ENV
