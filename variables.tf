@@ -33,8 +33,8 @@ variable "superblocks_agent_image" {
 
 variable "superblocks_server_url" {
   type        = string
-  default     = "https://app.superblocks.com"
-  description = "Superblocks server url"
+  default     = "https://api.superblocks.com"
+  description = "Superblocks API Server URL"
 }
 
 variable "name_prefix" {
@@ -57,6 +57,16 @@ variable "deploy_in_ecs" {
     Currently, this is the only option to deploy On-Premise Agent.
     We will support other deployment options in the future.
   EOF
+}
+
+variable "superblocks_agent_data_domain" {
+  type        = string
+  default     = "app.superblocks.com"
+  validation {
+    condition     = contains(["app.superblocks.com", "eu.superblocks.com"], var.superblocks_agent_data_domain)
+    error_message = "The data domain is invalid. Please use 'app.superblocks.com' or 'eu.superblocks.com'."
+  }
+  description = "The domain name for the specific Superblocks region that hosts your data."
 }
 
 #################################################################
@@ -128,8 +138,7 @@ variable "create_dns" {
 variable "domain" {
   type        = string
   description = <<EOF
-    This is domain name and the name of a Route53 hosted zone in the AWS account.
-    It's required if you want Superblocks to create the certificate.
+    This is the intended domain name of your Superblocks Agent. This will be used to setup your certificate and loadbalancer and registration of the agent against the Superblocks Server.
   EOF
   validation {
     condition     = length(var.domain) > 0
@@ -141,8 +150,7 @@ variable "subdomain" {
   type        = string
   default     = "superblocks-agent"
   description = <<EOF
-    This is the subdomain for Superblocks Agent.
-    It's required if you want Superblocks to create the certificate.
+    This is the intended subdomain name of your Superblocks Agent. This will be used to setup your certificate and loadbalancer and registration of the agent against the Superblocks Server.
   EOF
 }
 
