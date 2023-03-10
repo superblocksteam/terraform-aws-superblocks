@@ -43,7 +43,7 @@ module "terraform_aws_superblocks" {
 }
 ```
 
-If you are in the **EU region**, ensure that
+If you are in the **[EU region](https://eu.superblocks.com)**, ensure that
 
 ```terraform
 superblocks_agent_data_domain = "eu.superblocks.com"
