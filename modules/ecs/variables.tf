@@ -86,3 +86,9 @@ variable "container_scale_up_when_memory_pct_above" {
   type    = number
   default = "50"
 }
+
+variable "task_role_arn" {
+  type        = string
+  default     = null
+  description = "ARN of IAM role that allows the agent container task to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
+}
