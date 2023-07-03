@@ -41,6 +41,7 @@ resource "aws_ecs_task_definition" "superblocks_agent" {
   cpu                      = var.container_cpu
   memory                   = var.container_memory
   execution_role_arn       = aws_iam_role.superblocks_agent_role.arn
+  task_role_arn            = var.task_role_arn
   container_definitions    = <<DEFINITION
   [
     {

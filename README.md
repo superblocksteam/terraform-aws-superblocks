@@ -20,7 +20,7 @@ brew install hashicorp/tap/terraform
 ```
 
 Terraform officially supports `MacOS|Windows|Linux|FreeBSD|OpenBSD|Solaris`
-Check out this https://developer.hashicorp.com/terraform/downloads for more details
+Check out this <https://developer.hashicorp.com/terraform/downloads> for more details
 
 ### Deploy Superblocks On-Premise-Agent
 
@@ -142,6 +142,12 @@ variable "superblocks_agent_image" {
   type        = string
   default     = "ghcr.io/superblocksteam/agent"
   description = "The docker image used by Superblocks Agent container instance"
+}
+
+variable "superblocks_agent_role_arn" {
+  type        = string
+  default     = null
+  description = "ARN of IAM role that allows the Superblocks Agent container(s) to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
 }
 
 variable "name_prefix" {

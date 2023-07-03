@@ -60,13 +60,19 @@ variable "deploy_in_ecs" {
 }
 
 variable "superblocks_agent_data_domain" {
-  type        = string
-  default     = "app.superblocks.com"
+  type    = string
+  default = "app.superblocks.com"
   validation {
     condition     = contains(["app.superblocks.com", "eu.superblocks.com"], var.superblocks_agent_data_domain)
     error_message = "The data domain is invalid. Please use 'app.superblocks.com' or 'eu.superblocks.com'."
   }
   description = "The domain name for the specific Superblocks region that hosts your data."
+}
+
+variable "superblocks_agent_role_arn" {
+  type        = string
+  default     = null
+  description = "ARN of IAM role that allows the Superblocks Agent container(s) to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
 }
 
 #################################################################
