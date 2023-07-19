@@ -70,6 +70,7 @@ module "ecs" {
       { "name": "SUPERBLOCKS_AGENT_KEY", "value": "${var.superblocks_agent_key}" },
       { "name": "SUPERBLOCKS_CONTROLLER_DISCOVERY_ENABLED", "value": "false" },
       { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
+      { "name": "SUPERBLOCKS_AGENT_ENVIRONMENT", "value": "${local.superblocks_agent_environment}" },
       { "name": "SUPERBLOCKS_AGENT_TAGS", "value": "${local.superblocks_agent_tags}" },
       { "name": "SUPERBLOCKS_AGENT_PORT", "value": "${var.superblocks_agent_port}" },
       { "name": "SUPERBLOCKS_AGENT_DATA_DOMAIN", "value": "${var.superblocks_agent_data_domain}" },
