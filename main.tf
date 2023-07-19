@@ -62,6 +62,7 @@ module "ecs" {
 
   container_port         = var.superblocks_agent_port
   container_image        = var.superblocks_agent_image
+  # SUPERBLOCKS_AGENT_ENVIRONMENT is being passed for backwards compatibility with older versions of the agent
   container_environment  = <<ENV
     [
       { "name": "__SUPERBLOCKS_AGENT_SERVER_URL", "value": "${var.superblocks_server_url}" },
@@ -70,7 +71,8 @@ module "ecs" {
       { "name": "SUPERBLOCKS_AGENT_KEY", "value": "${var.superblocks_agent_key}" },
       { "name": "SUPERBLOCKS_CONTROLLER_DISCOVERY_ENABLED", "value": "false" },
       { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
-      { "name": "SUPERBLOCKS_AGENT_ENVIRONMENT", "value": "${var.superblocks_agent_environment}" },
+      { "name": "SUPERBLOCKS_AGENT_ENVIRONMENT", "value": "${local.superblocks_agent_environment}" },
+      { "name": "SUPERBLOCKS_AGENT_TAGS", "value": "${local.superblocks_agent_tags}" },
       { "name": "SUPERBLOCKS_AGENT_PORT", "value": "${var.superblocks_agent_port}" },
       { "name": "SUPERBLOCKS_AGENT_DATA_DOMAIN", "value": "${var.superblocks_agent_data_domain}" },
       { "name": "NODE_OPTIONS", "value": "--max_old_space_size=${local.node_heap}"}

@@ -132,10 +132,20 @@ container_max_capacity = 10
 #### Other Configurable Options
 
 ```terraform
-variable "superblocks_agent_environment" {
+variable "superblocks_agent_tags" {
   type        = string
-  default     = "*"
-  description = "Use this varible to differentiate Superblocks Agent running environment. Valid values are '*', 'staging' and 'production'"
+  default     = "profile:*"
+  description = <<EOF
+    Use this variable to specify which profile-specific workloads can be executed on this agent.
+    It accepts a comma (and colon) separated string representing key-value pairs, and currently only the "profile" key is used.
+
+    Some examples:
+    - To support all API executions:      "profile:*"
+    - To support staging and production:  "profile:staging,profile:production"
+    - To support only staging:            "profile:staging"
+    - To support only production:         "profile:production"
+    - To support a custom profile:        "profile:custom_profile_key"
+  EOF
 }
 
 variable "superblocks_agent_image" {

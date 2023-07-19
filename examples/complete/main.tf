@@ -113,7 +113,7 @@ module "ecs" {
       { "name": "SUPERBLOCKS_AGENT_KEY", "value": "${var.superblocks_agent_key}" },
       { "name": "SUPERBLOCKS_CONTROLLER_DISCOVERY_ENABLED", "value": "false" },
       { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
-      { "name": "SUPERBLOCKS_AGENT_ENVIRONMENT", "value": "*" },
+      { "name": "SUPERBLOCKS_AGENT_TAGS", "value": "profile:*" },
       { "name": "SUPERBLOCKS_AGENT_PORT", "value": "8020" }
     ]
   ENV
