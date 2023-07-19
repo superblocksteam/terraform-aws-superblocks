@@ -62,6 +62,7 @@ module "ecs" {
 
   container_port         = var.superblocks_agent_port
   container_image        = var.superblocks_agent_image
+  # SUPERBLOCKS_AGENT_ENVIRONMENT is being passed for backwards compatibility with older versions of the agent
   container_environment  = <<ENV
     [
       { "name": "__SUPERBLOCKS_AGENT_SERVER_URL", "value": "${var.superblocks_server_url}" },
