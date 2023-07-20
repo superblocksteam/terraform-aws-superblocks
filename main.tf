@@ -6,17 +6,19 @@ locals {
 # VPC
 #################################################################
 module "vpc" {
-  count  = var.create_vpc ? 1 : 0
-  source = "./modules/vpc"
+  count       = var.create_vpc ? 1 : 0
+  source      = "./modules/vpc"
+  name_prefix = var.name_prefix
 }
 
 #################################################################
 # Security Group
 #################################################################
 module "sg" {
-  count  = var.create_sg ? 1 : 0
-  source = "./modules/security-group"
-  vpc_id = local.vpc_id
+  count       = var.create_sg ? 1 : 0
+  source      = "./modules/security-group"
+  name_prefix = var.name_prefix
+  vpc_id      = local.vpc_id
 }
 
 #################################################################
@@ -26,6 +28,7 @@ module "lb" {
   count  = var.create_lb ? 1 : 0
   source = "./modules/load-balancer"
 
+  name_prefix        = var.name_prefix
   internal           = var.lb_internal
   vpc_id             = local.vpc_id
   subnet_ids         = local.lb_subnet_ids
@@ -40,6 +43,7 @@ module "dns" {
   count  = var.create_dns ? 1 : 0
   source = "./modules/dns"
 
+  name_prefix   = var.name_prefix
   zone_name     = var.domain
   record_name   = var.subdomain
   alias_name    = local.lb_dns_name
@@ -53,6 +57,7 @@ module "ecs" {
   count  = var.deploy_in_ecs ? 1 : 0
   source = "./modules/ecs"
 
+  name_prefix        = var.name_prefix
   region             = local.region
   subnet_ids         = local.ecs_subnet_ids
   security_group_ids = local.security_group_ids
@@ -60,8 +65,8 @@ module "ecs" {
 
   task_role_arn = var.superblocks_agent_role_arn
 
-  container_port         = var.superblocks_agent_port
-  container_image        = var.superblocks_agent_image
+  container_port  = var.superblocks_agent_port
+  container_image = var.superblocks_agent_image
   # SUPERBLOCKS_AGENT_ENVIRONMENT is being passed for backwards compatibility with older versions of the agent
   container_environment  = <<ENV
     [
