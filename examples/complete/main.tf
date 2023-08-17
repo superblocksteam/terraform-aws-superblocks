@@ -53,7 +53,7 @@ module "lb" {
   security_group_ids = local.security_group_ids
   name_prefix        = local.name_prefix
   tags               = local.tags
-  container_port     = "8020"
+  container_port     = "8080"
   listener_port      = "443"
   listener_protocol  = "HTTPS"
   certificate_arn    = local.certificate_arn
@@ -102,19 +102,32 @@ module "ecs" {
   container_cpu    = "512"
   container_memory = "1024"
   container_image  = "ghcr.io/superblocksteam/agent"
-  container_port   = "8020"
+  container_port   = "8080"
 
-  container_environment = <<ENV
+  container_environment  = <<ENV
     [
-      { "name": "__SUPERBLOCKS_AGENT_SERVER_URL", "value": "https://app.superblocks.com" },
-      { "name": "__SUPERBLOCKS_WORKER_LOCAL_ENABLED", "value": "true" },
-      { "name": "SUPERBLOCKS_WORKER_TLS_INSECURE", "value": "true" },
-      { "name": "SUPERBLOCKS_WORKER_METRICS_PORT", "value": "9091" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_LOG_LEVEL", "value": "${var.superblocks_log_level}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_HTTP_PORT", "value": "${local.superblocks_http_port}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_GRPC_PORT", "value": "8081" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_METRICS_PORT", "value": "9090" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_GRPC_BIND", "value": "0.0.0.0" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_HTTP_BIND", "value": "0.0.0.0" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_GRPC_MSG_RES_MAX", "value": "${var.superblocks_grpc_msg_res_max}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_GRPC_MSG_REQ_MAX", "value": "${var.superblocks_grpc_msg_req_max}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_URL", "value": "${var.superblocks_server_url}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_TIMEOUT", "value": "${var.superblocks_timeout}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_OTEL_COLLECTOR_HTTP_URL", "value": "https://traces.intake.superblocks.com:443/v1/traces" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_EMITTER_REMOTE_INTAKE", "value": "https://logs.intake.superblocks.com" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_INTAKE_METADATA_URL", "value": "https://metadata.intake.superblocks.com" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_TRANSPORT_MODE", "value": "grpc" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_STORE_MODE", "value": "grpc" },
       { "name": "SUPERBLOCKS_AGENT_KEY", "value": "${var.superblocks_agent_key}" },
-      { "name": "SUPERBLOCKS_CONTROLLER_DISCOVERY_ENABLED", "value": "false" },
-      { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
-      { "name": "SUPERBLOCKS_AGENT_TAGS", "value": "profile:*" },
-      { "name": "SUPERBLOCKS_AGENT_PORT", "value": "8020" }
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_KEY", "value": "${var.superblocks_agent_key}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_FILE_SERVER_URL", "value": "http://127.0.0.1:${local.superblocks_http_port}/v2/files" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_AGENT_ENVIRONMENT", "value": "${var.superblocks_agent_environment}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_AGENT_TAGS", "value": "${local.superblocks_agent_tags}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value": "${var.superblocks_agent_data_domain}" }
     ]
   ENV
 

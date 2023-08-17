@@ -10,6 +10,8 @@ locals {
   #     use profile:${superblocks_agent_environment}
   superblocks_agent_tags = var.superblocks_agent_tags != "profile:*" ? var.superblocks_agent_tags : var.superblocks_agent_environment == "*" ? "profile:*" : "profile:${var.superblocks_agent_environment}"
 
+  superblocks_http_port = var.superblocks_agent_port
+
   tags = merge(var.tags, {
     superblocks_agent_tags = var.superblocks_agent_tags
   })

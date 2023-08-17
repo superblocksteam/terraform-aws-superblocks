@@ -38,8 +38,8 @@ variable "superblocks_agent_tags" {
 
 variable "superblocks_agent_port" {
   type        = number
-  default     = "8020"
-  description = "The port number used by Superblocks Agent container instance"
+  default     = "8080"
+  description = "The http port number used by Superblocks Agent container instance"
 }
 
 variable "superblocks_agent_image" {
@@ -90,6 +90,30 @@ variable "superblocks_agent_role_arn" {
   type        = string
   default     = null
   description = "ARN of IAM role that allows the Superblocks Agent container(s) to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
+}
+
+variable "superblocks_grpc_msg_res_max" {
+  type        = string
+  default     = "100000000"
+  description = "The maximum message size in bytes allowed to be sent by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
+}
+
+variable "superblocks_grpc_msg_req_max" {
+  type        = string
+  default     = "30000000"
+  description = "The maximum message size in bytes allowed to be received by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
+}
+
+variable "superblocks_timeout" {
+  type        = string
+  default     = "10000"
+  description = "The maximum amount of time in milliseconds before a request is aborted. This applies for http requests against the Superblocks server and does not apply to the execution time limit of a workload."
+}
+
+variable "superblocks_log_level" {
+  type        = string
+  default     = "info"
+  description = "Logging level for the superblocks agent"
 }
 
 #################################################################

@@ -26,7 +26,7 @@ variable "security_group_ids" {
 
 variable "container_port" {
   type    = number
-  default = "8020"
+  default = "8080"
 }
 
 variable "listener_port" {

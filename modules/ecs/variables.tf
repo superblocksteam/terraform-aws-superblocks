@@ -52,7 +52,7 @@ variable "container_environment" {
 
 variable "container_port" {
   type    = number
-  default = "8020"
+  default = "8080"
 }
 
 variable "container_cpu" {
