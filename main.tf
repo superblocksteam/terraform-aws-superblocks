@@ -38,6 +38,7 @@ module "lb" {
   zone_name          = var.domain
   record_name        = var.subdomain
   create_dns         = var.create_dns
+  dns_ttl            = var.dns_ttl
   depends_on         = [module.vpc]
 }
 

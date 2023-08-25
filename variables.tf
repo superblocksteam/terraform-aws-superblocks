@@ -206,6 +206,15 @@ variable "certificate_arn" {
   EOF
 }
 
+variable "dns_ttl" {
+  type        = number
+  default     = 120
+  description = <<EOF
+    This is the TTL of the DNS record in seconds that's used for Superblocks Agent.
+    It's used if 'create_dns' is set to true
+  EOF
+}
+
 #################################################################
 # ECS
 #################################################################

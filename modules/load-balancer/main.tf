@@ -30,6 +30,7 @@ resource "aws_route53_record" "superblocks" {
   zone_id = data.aws_route53_zone.superblocks[0].zone_id
   name    = var.record_name
   type    = "CNAME"
+  ttl     = var.dns_ttl
 
   records = [
     aws_lb.superblocks.dns_name
