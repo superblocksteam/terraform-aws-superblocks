@@ -57,3 +57,8 @@ variable "record_name" {
   type    = string
   default = "agent"
 }
+
+variable "dns_ttl" {
+  type    = number
+  default = "120"
+}
