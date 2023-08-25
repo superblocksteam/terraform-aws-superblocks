@@ -19,6 +19,7 @@ module "sg" {
   source      = "./modules/security-group"
   name_prefix = var.name_prefix
   vpc_id      = local.vpc_id
+  depends_on  = [module.vpc]
 }
 
 #################################################################
@@ -34,6 +35,7 @@ module "lb" {
   subnet_ids         = local.lb_subnet_ids
   security_group_ids = local.security_group_ids
   certificate_arn    = local.certificate_arn
+  depends_on         = [module.vpc]
 }
 
 #################################################################
@@ -87,4 +89,6 @@ module "ecs" {
   container_memory       = var.container_memory
   container_min_capacity = var.container_min_capacity
   container_max_capacity = var.container_max_capacity
+
+  depends_on = [module.lb]
 }
