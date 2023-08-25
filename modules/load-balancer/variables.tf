@@ -43,3 +43,17 @@ variable "certificate_arn" {
   type    = string
   default = null
 }
+
+variable "create_dns" {
+  type    = bool
+  default = false
+}
+
+variable "zone_name" {
+  type = string
+}
+
+variable "record_name" {
+  type    = string
+  default = "agent"
+}

@@ -20,6 +20,22 @@ resource "aws_lb_target_group" "superblocks" {
   }
 }
 
+data "aws_route53_zone" "superblocks" {
+  count = var.create_dns ? 1 : 0
+  name  = var.zone_name
+}
+
+resource "aws_route53_record" "superblocks" {
+  count   = var.create_dns ? 1 : 0
+  zone_id = data.aws_route53_zone.superblocks[0].zone_id
+  name    = var.record_name
+  type    = "CNAME"
+
+  records = [
+    aws_lb.superblocks.dns_name
+  ]
+}
+
 resource "aws_lb_listener" "superblocks" {
   load_balancer_arn = aws_lb.superblocks.arn
   port              = var.listener_port

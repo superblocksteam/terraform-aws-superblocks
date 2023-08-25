@@ -35,6 +35,9 @@ module "lb" {
   subnet_ids         = local.lb_subnet_ids
   security_group_ids = local.security_group_ids
   certificate_arn    = local.certificate_arn
+  zone_name          = var.domain
+  record_name        = var.subdomain
+  create_dns         = var.create_dns
   depends_on         = [module.vpc]
 }
 
