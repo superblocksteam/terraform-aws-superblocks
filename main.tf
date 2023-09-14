@@ -97,7 +97,8 @@ module "ecs" {
       { "name": "SUPERBLOCKS_ORCHESTRATOR_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
       { "name": "SUPERBLOCKS_ORCHESTRATOR_AGENT_ENVIRONMENT", "value": "${var.superblocks_agent_environment}" },
       { "name": "SUPERBLOCKS_ORCHESTRATOR_AGENT_TAGS", "value": "${local.superblocks_agent_tags}" },
-      { "name": "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value": "${var.superblocks_agent_data_domain}" }
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value": "${var.superblocks_agent_data_domain}" },
+      { "name": "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value": "${var.superblocks_agent_handle_cors}" }
     ]
   ENV
   container_cpu          = var.container_cpu

@@ -116,6 +116,12 @@ variable "superblocks_log_level" {
   description = "Logging level for the superblocks agent"
 }
 
+variable "superblocks_agent_handle_cors" {
+  type = bool
+  default = false
+  description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
+}
+
 #################################################################
 # VPC
 #################################################################
