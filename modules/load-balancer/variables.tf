@@ -62,3 +62,34 @@ variable "dns_ttl" {
   type    = number
   default = "120"
 }
+
+variable "create_sg" {
+  type    = bool
+  default = true
+}
+
+variable "sg_ingress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+}
+
+variable "sg_egress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 0
+      to_port     = 65535
+      protocol    = "-1"
+      description = "All Egress"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+}

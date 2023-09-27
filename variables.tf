@@ -117,8 +117,8 @@ variable "superblocks_log_level" {
 }
 
 variable "superblocks_agent_handle_cors" {
-  type = bool
-  default = false
+  type        = bool
+  default     = false
   description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
 }
 
@@ -150,21 +150,6 @@ variable "ecs_subnet_ids" {
 }
 
 #################################################################
-# Security Group
-#################################################################
-variable "create_sg" {
-  type        = bool
-  default     = true
-  description = "Whether to create default security group or not."
-}
-
-variable "security_group_ids" {
-  type        = list(string)
-  default     = []
-  description = "Specify security group ids if 'create_sg' is set to false."
-}
-
-#################################################################
 # Load Balancer
 #################################################################
 variable "create_lb" {
@@ -179,10 +164,57 @@ variable "lb_internal" {
   description = "When it's set to false, load balancer is accessible in public network."
 }
 
-#################################################################
-# DNS & Certificate
-#################################################################
+
 variable "create_dns" {
+  type        = bool
+  default     = true
+  description = "Whether to create the DNS record for this loadbalancer with the agent URL."
+}
+
+variable "create_lb_sg" {
+  type        = bool
+  default     = true
+  description = "Whether to create default loadbalancer security group or not."
+}
+
+variable "lb_security_group_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify additional security groups to associate with the load balancer. This will be joined with the default security group if created."
+}
+
+variable "lb_sg_ingress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify ingress rules for the load balancer. Only used if create_lb_sg is set to true."
+}
+
+variable "lb_sg_egress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      description = "All Egress"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify egress rules for the load balancer. Only used if create_lb_sg is set to true."
+}
+
+#################################################################
+# Certificate
+#################################################################
+variable "create_certs" {
   type        = bool
   default     = true
   description = "Whether to create default HTTPS certificate or not."
@@ -279,4 +311,36 @@ variable "container_max_capacity" {
   type        = number
   default     = "5"
   description = "Maximum number of container instances"
+}
+
+variable "ecs_security_group_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify additional security groups to associate with the ECS cluster. This will be joined with the default security group if created."
+}
+
+variable "create_ecs_sg" {
+  type        = bool
+  default     = true
+  description = "Whether to create default security group for ECS or not."
+}
+
+variable "load_balancer_sg_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify loadbalancer security group ids to allow traffic from. Only used when create_ecs_sg is set to true."
+}
+
+variable "ecs_sg_egress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      description = "All egress traffic"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify egress rules for the ECS cluster. Only used if create_ecs_sg is set to true."
 }

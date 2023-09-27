@@ -26,10 +26,6 @@ variable "subnet_ids" {
 
 variable "security_group_ids" {
   type = list(string)
-  validation {
-    condition     = length(var.security_group_ids) > 0
-    error_message = "Security group ids are required for ECS service."
-  }
 }
 
 variable "target_group_arn" {
@@ -91,4 +87,33 @@ variable "task_role_arn" {
   type        = string
   default     = null
   description = "ARN of IAM role that allows the agent container task to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
+}
+
+variable "create_sg" {
+  type    = bool
+  default = true
+}
+
+variable "vpc_id" {
+  type = string
+  default = ""
+  description = "This is only required if you are creating the default security group."
+}
+
+variable "load_balancer_sg_ids" {
+  type = list(string)
+  default = []
+}
+
+variable "sg_egress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 0
+      to_port     = 65535
+      protocol    = "-1"
+      description = "All egress traffic"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
 }

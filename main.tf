@@ -12,17 +12,6 @@ module "vpc" {
 }
 
 #################################################################
-# Security Group
-#################################################################
-module "sg" {
-  count       = var.create_sg ? 1 : 0
-  source      = "./modules/security-group"
-  name_prefix = var.name_prefix
-  vpc_id      = local.vpc_id
-  depends_on  = [module.vpc]
-}
-
-#################################################################
 # Load Balancer
 #################################################################
 module "lb" {
@@ -33,21 +22,26 @@ module "lb" {
   internal           = var.lb_internal
   vpc_id             = local.vpc_id
   subnet_ids         = local.lb_subnet_ids
-  security_group_ids = local.security_group_ids
+  security_group_ids = var.lb_security_group_ids
   certificate_arn    = local.certificate_arn
   zone_name          = var.domain
   record_name        = var.subdomain
   create_dns         = var.create_dns
   dns_ttl            = var.dns_ttl
   depends_on         = [module.vpc]
+
+  create_sg = var.create_lb_sg
+  sg_ingress_with_cidr_blocks = var.lb_sg_ingress_with_cidr_blocks
+  sg_egress_with_cidr_blocks = var.lb_sg_egress_with_cidr_blocks
+
 }
 
 #################################################################
-# DNS & Certificate
+# Certificate
 #################################################################
-module "dns" {
-  count  = var.create_dns ? 1 : 0
-  source = "./modules/dns"
+module "certs" {
+  count  = var.create_certs ? 1 : 0
+  source = "./modules/certs"
 
   name_prefix   = var.name_prefix
   zone_name     = var.domain
@@ -66,7 +60,7 @@ module "ecs" {
   name_prefix        = var.name_prefix
   region             = local.region
   subnet_ids         = local.ecs_subnet_ids
-  security_group_ids = local.security_group_ids
+  security_group_ids = var.ecs_security_group_ids
   target_group_arn   = local.lb_target_group_arn
 
   task_role_arn = var.superblocks_agent_role_arn
@@ -99,6 +93,11 @@ module "ecs" {
   container_memory       = var.container_memory
   container_min_capacity = var.container_min_capacity
   container_max_capacity = var.container_max_capacity
+
+  create_sg            = var.create_ecs_sg
+  load_balancer_sg_ids = concat(var.create_lb_sg && var.create_lb ? [module.lb[0].lb_security_group_id] : [], var.load_balancer_sg_ids)
+  sg_egress_with_cidr_blocks = var.ecs_sg_egress_with_cidr_blocks
+  vpc_id = local.vpc_id
 
   depends_on = [module.lb]
 }

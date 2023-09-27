@@ -10,8 +10,12 @@ output "ecs_subnet_ids" {
   value = local.ecs_subnet_ids
 }
 
-output "security_group_ids" {
-  value = local.security_group_ids
+output "lb_security_group_id" {
+  value = module.lb[0].lb_security_group_id
+}
+
+output "ecs_security_group_id" {
+  value = module.ecs[0].ecs_security_group_id
 }
 
 output "lb_dns_name" {
