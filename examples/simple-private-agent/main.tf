@@ -1,26 +1,16 @@
 provider "aws" {
-  region = var.region
-}
-
-variable "region" {
-  type    = string
-  default = "us-east-1"
-}
-
-variable "superblocks_agent_key" {
-  type      = string
-  default   = "<SUPERBLOCKS_AGENT_KEY>"
-  sensitive = true
+  region = "us-east-1"
 }
 
 module "terraform_aws_superblocks" {
-  source = "../../"
+  source  = "superblocksteam/superblocks/aws"
+  version = "~1.0"
 
   create_vpc = true
   domain     = "clarkthekoala.com"
   subdomain  = "example-simple-private-agent"
 
-  superblocks_agent_key = var.superblocks_agent_key
+  superblocks_agent_key = "my-superblocks-agent-key"
 }
 
 output "vpc_id" {

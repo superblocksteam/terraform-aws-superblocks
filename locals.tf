@@ -21,8 +21,6 @@ locals {
   lb_subnet_ids  = var.create_vpc ? module.vpc[0].lb_subnet_ids : var.lb_subnet_ids
   ecs_subnet_ids = var.create_vpc ? module.vpc[0].ecs_subnet_ids : var.ecs_subnet_ids
 
-  lb_dns_name         = var.create_lb ? module.lb[0].dns_name : var.lb_dns_name
-  lb_zone_id          = var.create_lb ? module.lb[0].zone_id : var.lb_zone_id
   lb_target_group_arn = var.create_lb ? module.lb[0].target_group_arn : var.lb_target_group_arn
 
   certificate_arn = var.create_certs ? module.certs[0].certificate_arn : var.certificate_arn

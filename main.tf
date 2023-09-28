@@ -43,18 +43,14 @@ module "certs" {
   count  = var.create_certs ? 1 : 0
   source = "./modules/certs"
 
-  name_prefix   = var.name_prefix
   zone_name     = var.domain
   record_name   = var.subdomain
-  alias_name    = local.lb_dns_name
-  alias_zone_id = local.lb_zone_id
 }
 
 #################################################################
 # ECS
 #################################################################
 module "ecs" {
-  count  = var.deploy_in_ecs ? 1 : 0
   source = "./modules/ecs"
 
   name_prefix        = var.name_prefix

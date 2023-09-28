@@ -66,16 +66,6 @@ variable "tags" {
   description = "A series of tags that will be added to each AWS resource created by this module"
 }
 
-variable "deploy_in_ecs" {
-  type        = bool
-  default     = true
-  description = <<EOF
-    Whether to deploy Superblocks Agent to ECS Fargate.
-    Currently, this is the only option to deploy On-Premise Agent.
-    We will support other deployment options in the future.
-  EOF
-}
-
 variable "superblocks_agent_data_domain" {
   type    = string
   default = "app.superblocks.com"
@@ -118,7 +108,7 @@ variable "superblocks_log_level" {
 
 variable "superblocks_agent_handle_cors" {
   type        = bool
-  default     = false
+  default     = true
   description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
 }
 
@@ -211,6 +201,15 @@ variable "lb_sg_egress_with_cidr_blocks" {
   description = "Specify egress rules for the load balancer. Only used if create_lb_sg is set to true."
 }
 
+variable "dns_ttl" {
+  type        = number
+  default     = 120
+  description = <<EOF
+    This is the TTL of the DNS record in seconds that's used for Superblocks Agent.
+    It's used if 'create_dns' is set to true
+  EOF
+}
+
 #################################################################
 # Certificate
 #################################################################
@@ -239,41 +238,12 @@ variable "subdomain" {
   EOF
 }
 
-variable "lb_dns_name" {
-  type        = string
-  default     = null
-  description = <<EOF
-    This is the DNS name of load balancer that's used for Superblocks Agent.
-    To create the certificate, an Alias record will be created.
-    That record will be pointed to this DNS name.
-    Required if you want Superblocks to create the certificate and 'create_lb' is set to false.
-  EOF
-}
-
-variable "lb_zone_id" {
-  type        = string
-  default     = null
-  description = <<EOF
-    This is the DNS zone id of load balancer that's used for Superblocks Agent.
-    Required if you want Superblocks to create the certificate and 'create_lb' is set to false.
-  EOF
-}
-
 variable "certificate_arn" {
   type        = string
   default     = null
   description = <<EOF
     This should be the arn of a valid ACM certificate arn.
     It's required if 'create_certificate' is set to false
-  EOF
-}
-
-variable "dns_ttl" {
-  type        = number
-  default     = 120
-  description = <<EOF
-    This is the TTL of the DNS record in seconds that's used for Superblocks Agent.
-    It's used if 'create_dns' is set to true
   EOF
 }
 

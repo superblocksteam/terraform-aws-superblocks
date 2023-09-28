@@ -1,30 +1,20 @@
 provider "aws" {
-  region = var.region
-}
-
-variable "region" {
-  type    = string
-  default = "us-east-1"
-}
-
-variable "superblocks_agent_key" {
-  type      = string
-  default   = "<YOUR_AGENT_KEY>"
-  sensitive = true
+  region = "us-east-1"
 }
 
 module "terraform_aws_superblocks" {
-  source      = "../../"
-  lb_internal = false
+  source  = "superblocksteam/superblocks/aws"
+  version = "~1.0"
 
   create_vpc = true
   domain     = "clarkthekoala.com"
   subdomain  = "custom-cert"
 
-  create_dns      = false
-  certificate_arn = "<YOUR_CERTIFICATE_ARN>"
+  create_lb       = true
+  lb_internal     = false
+  certificate_arn = "arn:aws:acm:us-east-1:361919038798:certificate/12345678-1234-1234-1234-123456789012"
 
-  superblocks_agent_key = var.superblocks_agent_key
+  superblocks_agent_key = "my-superblocks-agent-key"
 }
 
 # Once the agent is deployed, create a CNAME record

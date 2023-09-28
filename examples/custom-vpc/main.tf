@@ -1,16 +1,5 @@
 provider "aws" {
-  region = var.region
-}
-
-variable "region" {
-  type    = string
-  default = "us-east-1"
-}
-
-variable "superblocks_agent_key" {
-  type      = string
-  default   = "<SUPERBLOCKS_AGENT_KEY>"
-  sensitive = true
+  region = "us-east-1"
 }
 
 # Create your own VPC or use the sub-module in this package
@@ -29,16 +18,20 @@ locals {
 }
 
 module "terraform_aws_superblocks" {
-  source      = "../../"
+  source  = "superblocksteam/superblocks/aws"
+  version = "~1.0"
+
+  create_lb   = true
   lb_internal = false
 
+  create_vpc     = false
   vpc_id         = local.vpc_id
   lb_subnet_ids  = local.lb_subnet_ids
   ecs_subnet_ids = local.ecs_subnet_ids
   domain         = "clarkthekoala.com"
   subdomain      = "custom-vpc"
 
-  superblocks_agent_key = var.superblocks_agent_key
+  superblocks_agent_key = "my-superblocks-agent-key"
 }
 
 output "agent_host_url" {
