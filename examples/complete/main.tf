@@ -1,131 +1,91 @@
 provider "aws" {
-  region = var.region
+  region = "us-east-1"
 }
 
-variable "region" {
-  type    = string
-  default = "us-east-1"
-}
+module "terraform_aws_superblocks" {
+  source  = "superblocksteam/superblocks/aws"
+  version = "~1.0"
 
-locals {
-  name_prefix = "example-complete"
-  tags        = {}
-}
+  # This will configure the agent URL to be agent.mycompany.com
+  domain    = "mycompany.com"
+  subdomain = "agent"
 
-# Create your own VPC or use the sub-module in this package
-module "vpc" {
-  source = "../../modules/vpc"
+  superblocks_agent_key = "my-superblocks-agent-key"
+  # Deprecated: use superblocks_agent_tags instead
+  superblocks_agent_environment = "*"
 
-  name_prefix     = local.name_prefix
-  tags            = local.tags
-  cidr_block      = "10.0.0.0/20"
-  public_subnets  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  private_subnets = ["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]
-}
+  superblocks_agent_tags = "profile:production"
 
-locals {
-  vpc_id         = module.vpc.id
-  lb_subnet_ids  = module.vpc.lb_subnet_ids
-  ecs_subnet_ids = module.vpc.ecs_subnet_ids
-}
+  superblocks_agent_port = 8080
 
-# Create your own security group or use the sub-module in this package
-module "sg" {
-  source = "../../modules/security-group"
+  superblocks_agent_image = "ghcr.io/superblocksteam/agent:v1.0.0"
 
-  vpc_id              = local.vpc_id
-  name_prefix         = local.name_prefix
-  tags                = local.tags
-  ingress_cidr_blocks = ["0.0.0.0/0"]
-}
+  superblocks_server_url = "https://api.superblocks.com"
 
-locals {
-  security_group_ids = [module.sg.id]
-}
+  name_prefix = "superblocks"
 
-# Create your own load balancer or use the sub-module in this package
-module "lb" {
-  source = "../../modules/load-balancer"
+  tags = {
+    "my-tag" = "my-value"
+  }
 
-  internal           = false
-  vpc_id             = local.vpc_id
-  subnet_ids         = local.lb_subnet_ids
-  security_group_ids = local.security_group_ids
-  name_prefix        = local.name_prefix
-  tags               = local.tags
-  container_port     = "8020"
-  listener_port      = "443"
-  listener_protocol  = "HTTPS"
-  certificate_arn    = local.certificate_arn
-}
+  superblocks_agent_data_domain = "app.superblocks.com"
 
-locals {
-  lb_dns_name         = module.lb.dns_name
-  lb_zone_id          = module.lb.zone_id
-  lb_target_group_arn = module.lb.target_group_arn
-}
+  superblocks_agent_role_arn = "arn:aws:iam::361919038798:role/superblocks-agent-role"
 
-# Create your own certificate or use the sub-module in this package
-module "dns" {
-  source = "../../modules/dns"
+  superblocks_grpc_msg_res_max  = "100000000"
+  superblocks_grpc_msg_req_max  = "30000000"
+  superblocks_timeout           = "10000000000000"
+  superblocks_log_level         = "info"
+  superblocks_agent_handle_cors = true
 
-  zone_name     = "clarkthekoala.com"
-  record_name   = "example-complete"
-  alias_name    = local.lb_dns_name
-  alias_zone_id = local.lb_zone_id
-  name_prefix   = local.name_prefix
-  tags          = local.tags
-}
+  create_vpc     = false
+  vpc_id         = "vpc-1234567890"
+  lb_subnet_ids  = ["public-subnet-123", "public-subnet-456"]
+  ecs_subnet_ids = ["private-subnet-123", "private-subnet-456"]
 
-locals {
-  certificate_arn = module.dns.certificate_arn
-  agent_host_url  = "https://example-complete.clarkthekoala.com"
-}
+  create_lb             = true
+  lb_internal           = false
+  create_dns            = true
+  create_lb_sg          = true
+  lb_security_group_ids = ["sg-123"]
+  lb_sg_ingress_with_cidr_blocks = [
+    {
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  lb_sg_egress_with_cidr_blocks = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      description = "All Egress"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
 
-# Deploy Superblocks to AWS ECS
-variable "superblocks_agent_key" {
-  type      = string
-  sensitive = true
-  default   = "<SUPERBLOCKS_AGENT_KEY>"
-}
+  create_certs    = false
+  certificate_arn = "arn:aws:acm:us-west-2:361919038798:certificate/45193203-ac25-4f0c-8a5f-9c57f0c47262"
 
-module "ecs" {
-  source = "../../modules/ecs"
-
-  region             = "us-east-1"
-  subnet_ids         = local.ecs_subnet_ids
-  security_group_ids = local.security_group_ids
-  target_group_arn   = local.lb_target_group_arn
-  name_prefix        = local.name_prefix
-  tags               = local.tags
-
-  container_cpu    = "512"
-  container_memory = "1024"
-  container_image  = "ghcr.io/superblocksteam/agent"
-  container_port   = "8020"
-
-  container_environment = <<ENV
-    [
-      { "name": "__SUPERBLOCKS_AGENT_SERVER_URL", "value": "https://app.superblocks.com" },
-      { "name": "__SUPERBLOCKS_WORKER_LOCAL_ENABLED", "value": "true" },
-      { "name": "SUPERBLOCKS_WORKER_TLS_INSECURE", "value": "true" },
-      { "name": "SUPERBLOCKS_WORKER_METRICS_PORT", "value": "9091" },
-      { "name": "SUPERBLOCKS_AGENT_KEY", "value": "${var.superblocks_agent_key}" },
-      { "name": "SUPERBLOCKS_CONTROLLER_DISCOVERY_ENABLED", "value": "false" },
-      { "name": "SUPERBLOCKS_AGENT_HOST_URL", "value": "${local.agent_host_url}" },
-      { "name": "SUPERBLOCKS_AGENT_TAGS", "value": "profile:*" },
-      { "name": "SUPERBLOCKS_AGENT_PORT", "value": "8020" }
-    ]
-  ENV
-
-  container_min_capacity = "1"
-  container_max_capacity = "5"
-
-  container_scale_up_when_cpu_pct_above    = "50"
-  container_scale_up_when_memory_pct_above = "50"
-  ecs_cluster_capacity_providers           = ["FARGATE"]
-}
-
-output "agent_host_url" {
-  value = local.agent_host_url
+  # Not actually used in this example since we are creating the LB as part of this module
+  lb_target_group_arn    = "arn:aws:elasticloadbalancing:us-west-2:361919038798:targetgroup/1234567890/1234567890"
+  container_cpu          = 1024
+  container_memory       = 4096
+  container_min_capacity = 1
+  container_max_capacity = 5
+  ecs_security_group_ids = ["sg-456"]
+  create_ecs_sg          = true
+  load_balancer_sg_ids   = ["sg-123"]
+  ecs_sg_egress_with_cidr_blocks = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      description = "All egress traffic"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
 }

@@ -38,8 +38,8 @@ variable "superblocks_agent_tags" {
 
 variable "superblocks_agent_port" {
   type        = number
-  default     = "8020"
-  description = "The port number used by Superblocks Agent container instance"
+  default     = "8080"
+  description = "The http port number used by Superblocks Agent container instance"
 }
 
 variable "superblocks_agent_image" {
@@ -66,16 +66,6 @@ variable "tags" {
   description = "A series of tags that will be added to each AWS resource created by this module"
 }
 
-variable "deploy_in_ecs" {
-  type        = bool
-  default     = true
-  description = <<EOF
-    Whether to deploy Superblocks Agent to ECS Fargate.
-    Currently, this is the only option to deploy On-Premise Agent.
-    We will support other deployment options in the future.
-  EOF
-}
-
 variable "superblocks_agent_data_domain" {
   type    = string
   default = "app.superblocks.com"
@@ -90,6 +80,36 @@ variable "superblocks_agent_role_arn" {
   type        = string
   default     = null
   description = "ARN of IAM role that allows the Superblocks Agent container(s) to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
+}
+
+variable "superblocks_grpc_msg_res_max" {
+  type        = string
+  default     = "100000000"
+  description = "The maximum message size in bytes allowed to be sent by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
+}
+
+variable "superblocks_grpc_msg_req_max" {
+  type        = string
+  default     = "30000000"
+  description = "The maximum message size in bytes allowed to be received by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
+}
+
+variable "superblocks_timeout" {
+  type        = string
+  default     = "10000000000"
+  description = "The maximum amount of time in nanoseconds before a request is aborted. This applies for http requests against the Superblocks server and does not apply to the execution time limit of a workload."
+}
+
+variable "superblocks_log_level" {
+  type        = string
+  default     = "info"
+  description = "Logging level for the superblocks agent"
+}
+
+variable "superblocks_agent_handle_cors" {
+  type        = bool
+  default     = true
+  description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
 }
 
 #################################################################
@@ -120,21 +140,6 @@ variable "ecs_subnet_ids" {
 }
 
 #################################################################
-# Security Group
-#################################################################
-variable "create_sg" {
-  type        = bool
-  default     = true
-  description = "Whether to create default security group or not."
-}
-
-variable "security_group_ids" {
-  type        = list(string)
-  default     = []
-  description = "Specify security group ids if 'create_sg' is set to false."
-}
-
-#################################################################
 # Load Balancer
 #################################################################
 variable "create_lb" {
@@ -149,10 +154,66 @@ variable "lb_internal" {
   description = "When it's set to false, load balancer is accessible in public network."
 }
 
-#################################################################
-# DNS & Certificate
-#################################################################
+
 variable "create_dns" {
+  type        = bool
+  default     = true
+  description = "Whether to create the DNS record for this loadbalancer with the agent URL."
+}
+
+variable "create_lb_sg" {
+  type        = bool
+  default     = true
+  description = "Whether to create default loadbalancer security group or not."
+}
+
+variable "lb_security_group_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify additional security groups to associate with the load balancer. This will be joined with the default security group if created."
+}
+
+variable "lb_sg_ingress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify ingress rules for the load balancer. Only used if create_lb_sg is set to true."
+}
+
+variable "lb_sg_egress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      description = "All Egress"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify egress rules for the load balancer. Only used if create_lb_sg is set to true."
+}
+
+variable "dns_ttl" {
+  type        = number
+  default     = 120
+  description = <<EOF
+    This is the TTL of the DNS record in seconds that's used for Superblocks Agent.
+    It's used if 'create_dns' is set to true
+  EOF
+}
+
+#################################################################
+# Certificate
+#################################################################
+variable "create_certs" {
   type        = bool
   default     = true
   description = "Whether to create default HTTPS certificate or not."
@@ -177,41 +238,12 @@ variable "subdomain" {
   EOF
 }
 
-variable "lb_dns_name" {
-  type        = string
-  default     = null
-  description = <<EOF
-    This is the DNS name of load balancer that's used for Superblocks Agent.
-    To create the certificate, an Alias record will be created.
-    That record will be pointed to this DNS name.
-    Required if you want Superblocks to create the certificate and 'create_lb' is set to false.
-  EOF
-}
-
-variable "lb_zone_id" {
-  type        = string
-  default     = null
-  description = <<EOF
-    This is the DNS zone id of load balancer that's used for Superblocks Agent.
-    Required if you want Superblocks to create the certificate and 'create_lb' is set to false.
-  EOF
-}
-
 variable "certificate_arn" {
   type        = string
   default     = null
   description = <<EOF
     This should be the arn of a valid ACM certificate arn.
     It's required if 'create_certificate' is set to false
-  EOF
-}
-
-variable "dns_ttl" {
-  type        = number
-  default     = 120
-  description = <<EOF
-    This is the TTL of the DNS record in seconds that's used for Superblocks Agent.
-    It's used if 'create_dns' is set to true
   EOF
 }
 
@@ -249,4 +281,36 @@ variable "container_max_capacity" {
   type        = number
   default     = "5"
   description = "Maximum number of container instances"
+}
+
+variable "ecs_security_group_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify additional security groups to associate with the ECS cluster. This will be joined with the default security group if created."
+}
+
+variable "create_ecs_sg" {
+  type        = bool
+  default     = true
+  description = "Whether to create default security group for ECS or not."
+}
+
+variable "load_balancer_sg_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify loadbalancer security group ids to allow traffic from. Only used when create_ecs_sg is set to true."
+}
+
+variable "ecs_sg_egress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      description = "All egress traffic"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify egress rules for the ECS cluster. Only used if create_ecs_sg is set to true."
 }

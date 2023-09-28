@@ -28,14 +28,14 @@ resource "aws_ecs_service" "superblocks" {
 
   network_configuration {
     subnets         = var.subnet_ids
-    security_groups = var.security_group_ids
+    security_groups = var.create_sg ? concat([module.ecs_security_group[0].security_group_id], var.security_group_ids) : var.security_group_ids
   }
 
   tags = var.tags
 }
 
 resource "aws_ecs_task_definition" "superblocks_agent" {
-  family                   = "superblocks-agent"
+  family                   = "${var.name_prefix}-superblocks-agent"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.container_cpu
@@ -77,7 +77,7 @@ resource "aws_ecs_task_definition" "superblocks_agent" {
 # ECS Task Role
 ####################################################################
 resource "aws_iam_role" "superblocks_agent_role" {
-  name               = "${var.name_prefix}-agent-role"
+  name_prefix        = "${var.name_prefix}-agent-role"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -98,8 +98,8 @@ EOF
 }
 
 resource "aws_iam_policy" "superblocks_agent_policy" {
-  name   = "${var.name_prefix}-agent-policy"
-  policy = <<EOF
+  name_prefix = "${var.name_prefix}-agent-policy"
+  policy      = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -136,7 +136,7 @@ resource "aws_appautoscaling_target" "superblocks" {
 }
 
 resource "aws_appautoscaling_policy" "memory" {
-  name               = "scaling-policy-memory"
+  name               = "${var.name_prefix}-scaling-policy-memory"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.superblocks.resource_id
   scalable_dimension = aws_appautoscaling_target.superblocks.scalable_dimension
@@ -152,7 +152,7 @@ resource "aws_appautoscaling_policy" "memory" {
 }
 
 resource "aws_appautoscaling_policy" "cpu" {
-  name               = "scaling-policy-cpu"
+  name               = "${var.name_prefix}-scaling-policy-cpu"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.superblocks.resource_id
   scalable_dimension = aws_appautoscaling_target.superblocks.scalable_dimension
@@ -165,4 +165,24 @@ resource "aws_appautoscaling_policy" "cpu" {
 
     target_value = var.container_scale_up_when_cpu_pct_above
   }
+}
+
+module "ecs_security_group" {
+  count   = var.create_sg ? 1 : 0
+  source  = "terraform-aws-modules/security-group/aws"
+  version = ">=5.0.0"
+  name    = "${var.name_prefix}-ecs-sg"
+  vpc_id  = var.vpc_id
+  ingress_with_source_security_group_id = [for sg_id in var.load_balancer_sg_ids :
+    {
+      from_port                = var.container_port
+      to_port                  = var.container_port
+      protocol                 = "tcp"
+      description              = "Ingress from load balancer"
+      source_security_group_id = sg_id
+    }
+  ]
+  egress_with_cidr_blocks = var.sg_egress_with_cidr_blocks
+  tags                    = var.tags
+  use_name_prefix         = true
 }
