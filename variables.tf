@@ -112,6 +112,12 @@ variable "superblocks_agent_handle_cors" {
   description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
 }
 
+variable "superblocks_agent_environment_variables" {
+  type        = list(map(string))
+  default     = []
+  description = "Environment variables that will be passed to the Superblocks Agent container(s). This can be specified in the form of [{name = \"key\", value = \"value\"}]."
+}
+
 #################################################################
 # VPC
 #################################################################

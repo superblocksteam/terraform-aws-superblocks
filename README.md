@@ -254,6 +254,42 @@ variable "ecs_security_group_ids" {
   default     = []
   description = "Specify additional security groups to associate with the ECS cluster. This will be joined with the default security group if created."
 }
+
+variable "superblocks_grpc_msg_res_max" {
+  type        = string
+  default     = "100000000"
+  description = "The maximum message size in bytes allowed to be sent by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
+}
+
+variable "superblocks_grpc_msg_req_max" {
+  type        = string
+  default     = "30000000"
+  description = "The maximum message size in bytes allowed to be received by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
+}
+
+variable "superblocks_timeout" {
+  type        = string
+  default     = "10000000000"
+  description = "The maximum amount of time in nanoseconds before a request is aborted. This applies for http requests against the Superblocks server and does not apply to the execution time limit of a workload."
+}
+
+variable "superblocks_log_level" {
+  type        = string
+  default     = "info"
+  description = "Logging level for the superblocks agent"
+}
+
+variable "superblocks_agent_handle_cors" {
+  type        = bool
+  default     = true
+  description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
+}
+
+variable "superblocks_agent_environment_variables" {
+  type        = list(map(string))
+  default     = []
+  description = "Environment variables that will be passed to the Superblocks Agent container(s). This can be specified in the form of [{name = "key", value = "value"}]."
+}
 ```
 
 ## Migration Guides

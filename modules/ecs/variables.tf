@@ -42,8 +42,8 @@ variable "container_image" {
 }
 
 variable "container_environment" {
-  type    = string
-  default = ""
+  type    = list(map(string))
+  default = []
 }
 
 variable "container_port" {
