@@ -105,6 +105,7 @@ To find your target ground ARN use `aws elbv2 describe-target-groups` or by find
 If you use Route53 for domain management you can use the Terraform module to generate a DNS record and  certificate for your agent, and associated both with your Load Balancer. If you don't use Route53 or want to use an existing certificate & DNS record, add the following to your configuration
 
 ```terraform
+create_certs = false
 create_dns = false
 certificate_arn = "<YOUR_CERTIFICATE_ARN>"
 ```
@@ -127,6 +128,65 @@ AWS will automatically scale your ECS instances based on traffic. To configure t
 ```terraform
 container_min_capacity = 1
 container_max_capacity = 10
+```
+
+#### Security Groups
+
+By default, security groups will be created for both the loadbalancer and ECS cluster.
+You can modify the default security ECS group rules with the following variables:
+
+```terraform
+variable "load_balancer_sg_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify loadbalancer security group ids to allow traffic from. Only used when create_ecs_sg is set to true."
+}
+
+variable "ecs_sg_egress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      description = "All egress traffic"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify egress rules for the ECS cluster. Only used if create_ecs_sg is set to true."
+}
+```
+
+You can modify the default loadbalancer security group rules with the following variables:
+
+```terraform
+variable "lb_sg_ingress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify ingress rules for the load balancer. Only used if create_lb_sg is set to true."
+}
+
+variable "lb_sg_egress_with_cidr_blocks" {
+  type = list(map(string))
+  default = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      description = "All Egress"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+  description = "Specify egress rules for the load balancer. Only used if create_lb_sg is set to true."
+}
 ```
 
 #### Other Configurable Options
@@ -172,3 +232,75 @@ variable "tags" {
   description = "A series of tags that will be added to each AWS resource created by this module"
 }
 ```
+
+To disable default security groups, you can set
+
+```terraform
+create_lb_sg = false
+create_ecs_sg = false
+```
+
+You may specify your own security groups to be assigned to the loadbalancer and the ECS cluster using the following variables:
+
+```terraform
+variable "lb_security_group_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify additional security groups to associate with the load balancer. This will be joined with the default security group if created."
+}
+
+variable "ecs_security_group_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify additional security groups to associate with the ECS cluster. This will be joined with the default security group if created."
+}
+
+variable "superblocks_grpc_msg_res_max" {
+  type        = string
+  default     = "100000000"
+  description = "The maximum message size in bytes allowed to be sent by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
+}
+
+variable "superblocks_grpc_msg_req_max" {
+  type        = string
+  default     = "30000000"
+  description = "The maximum message size in bytes allowed to be received by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
+}
+
+variable "superblocks_timeout" {
+  type        = string
+  default     = "10000000000"
+  description = "The maximum amount of time in nanoseconds before a request is aborted. This applies for http requests against the Superblocks server and does not apply to the execution time limit of a workload."
+}
+
+variable "superblocks_log_level" {
+  type        = string
+  default     = "info"
+  description = "Logging level for the superblocks agent"
+}
+
+variable "superblocks_agent_handle_cors" {
+  type        = bool
+  default     = true
+  description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
+}
+
+variable "superblocks_agent_environment_variables" {
+  type        = list(map(string))
+  default     = []
+  description = "Environment variables that will be passed to the Superblocks Agent container(s). This can be specified in the form of [{name = "key", value = "value"}]."
+}
+```
+
+## Migration Guides
+
+### 0.x to 1.x
+
+* `deploy_in_ecs` variable has been completely removed.
+* `create_sg` variable replaced by two new variables:
+  * `create_lb_sg` creates a default loadbalancer security group.
+  * `create_ecs_sg` creates a default loadbalancer security group.
+* `security_group_ids` variable replaced by two new variables:
+  * `lb_security_group_ids` allows users to set security groups for the loadbalancer, if `create_lb` is set to true.
+  * `ecs_security_group_ids` allows users to set security groups for the ECS cluster.
+* `create_dns` no longer creates both certificate and the DNS entry. A new `create_certs` flag exists to create create the ACM certificate. `create_dns` now only determines whether the DNS entry to point to the loadbalancer is created.

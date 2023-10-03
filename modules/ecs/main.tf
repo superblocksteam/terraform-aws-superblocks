@@ -65,7 +65,7 @@ resource "aws_ecs_task_definition" "superblocks_agent" {
           "awslogs-stream-prefix": "superblocks-agent"
         }
       },
-      "environment": ${var.container_environment}
+      "environment": ${jsonencode(var.container_environment)}
     }
   ]
   DEFINITION
