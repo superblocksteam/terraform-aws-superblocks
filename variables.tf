@@ -103,13 +103,13 @@ variable "superblocks_timeout" {
 variable "superblocks_log_level" {
   type        = string
   default     = "info"
-  description = "Logging level for the superblocks agent"
+  description = "Logging level for the superblocks agent. Accepted values are 'debug', 'info', 'warn', 'error', 'fatal', 'panic'."
 }
 
 variable "superblocks_agent_handle_cors" {
   type        = bool
   default     = true
-  description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
+  description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS. This will allow CORS for all origins."
 }
 
 variable "superblocks_agent_environment_variables" {

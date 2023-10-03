@@ -189,6 +189,29 @@ variable "lb_sg_egress_with_cidr_blocks" {
 }
 ```
 
+To disable default security groups, you can set
+
+```terraform
+create_lb_sg = false
+create_ecs_sg = false
+```
+
+You may specify your own security groups to be assigned to the loadbalancer and the ECS cluster using the following variables:
+
+```terraform
+variable "lb_security_group_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify additional security groups to associate with the load balancer. This will be joined with the default security group if created."
+}
+
+variable "ecs_security_group_ids" {
+  type        = list(string)
+  default     = []
+  description = "Specify additional security groups to associate with the ECS cluster. This will be joined with the default security group if created."
+}
+```
+
 #### Other Configurable Options
 
 ```terraform
@@ -231,29 +254,6 @@ variable "tags" {
   default     = {}
   description = "A series of tags that will be added to each AWS resource created by this module"
 }
-```
-
-To disable default security groups, you can set
-
-```terraform
-create_lb_sg = false
-create_ecs_sg = false
-```
-
-You may specify your own security groups to be assigned to the loadbalancer and the ECS cluster using the following variables:
-
-```terraform
-variable "lb_security_group_ids" {
-  type        = list(string)
-  default     = []
-  description = "Specify additional security groups to associate with the load balancer. This will be joined with the default security group if created."
-}
-
-variable "ecs_security_group_ids" {
-  type        = list(string)
-  default     = []
-  description = "Specify additional security groups to associate with the ECS cluster. This will be joined with the default security group if created."
-}
 
 variable "superblocks_grpc_msg_res_max" {
   type        = string
@@ -276,13 +276,13 @@ variable "superblocks_timeout" {
 variable "superblocks_log_level" {
   type        = string
   default     = "info"
-  description = "Logging level for the superblocks agent"
+  description = "Logging level for the superblocks agent. Accepted values are 'debug', 'info', 'warn', 'error', 'fatal', 'panic'."
 }
 
 variable "superblocks_agent_handle_cors" {
   type        = bool
   default     = true
-  description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS."
+  description = "Whether to enable CORS support for the Superblocks Agent. This is required if you don't have a reverse proxy in front of the agent that handles CORS. This will allow CORS for all origins."
 }
 
 variable "superblocks_agent_environment_variables" {
