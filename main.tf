@@ -83,7 +83,7 @@ module "ecs" {
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_AGENT_TAGS", "value" : "${local.superblocks_agent_tags}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value" : "${var.superblocks_agent_data_domain}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" }
-    ], var.superblocks_agent_environment_variables)
+  ], var.superblocks_agent_environment_variables)
 
   container_cpu          = var.container_cpu
   container_memory       = var.container_memory

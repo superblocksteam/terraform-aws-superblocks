@@ -253,6 +253,22 @@ variable "certificate_arn" {
   EOF
 }
 
+variable "zone_vpc_id" {
+  type        = string
+  default     = null
+  description = <<EOF
+    This is the vpc id to query the route53 zone from.
+  EOF
+}
+
+variable "zone_private" {
+  type        = bool
+  default     = false
+  description = <<EOF
+    Indicates whether the zone is private or not.
+  EOF
+}
+
 #################################################################
 # ECS
 #################################################################

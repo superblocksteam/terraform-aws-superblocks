@@ -95,13 +95,13 @@ variable "create_sg" {
 }
 
 variable "vpc_id" {
-  type = string
-  default = ""
+  type        = string
+  default     = ""
   description = "This is only required if you are creating the default security group."
 }
 
 variable "load_balancer_sg_ids" {
-  type = list(string)
+  type    = list(string)
   default = []
 }
 

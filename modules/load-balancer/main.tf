@@ -27,6 +27,9 @@ resource "aws_lb_target_group" "superblocks" {
 data "aws_route53_zone" "superblocks" {
   count = var.create_dns ? 1 : 0
   name  = var.zone_name
+
+  private_zone = var.private_zone
+  vpc_id       = var.private_zone ? var.vpc_id : null
 }
 
 resource "aws_route53_record" "superblocks" {
@@ -56,13 +59,13 @@ resource "aws_lb_listener" "superblocks" {
 }
 
 module "loadbalancer_security_group" {
-  count               = var.create_sg ? 1 : 0
-  source              = "terraform-aws-modules/security-group/aws"
-  version             = ">=5.0.0"
-  name                = "${var.name_prefix}-lb-sg"
-  vpc_id              = var.vpc_id
+  count                    = var.create_sg ? 1 : 0
+  source                   = "terraform-aws-modules/security-group/aws"
+  version                  = ">=5.0.0"
+  name                     = "${var.name_prefix}-lb-sg"
+  vpc_id                   = var.vpc_id
   ingress_with_cidr_blocks = var.sg_ingress_with_cidr_blocks
-  egress_with_cidr_blocks = var.sg_egress_with_cidr_blocks
-  tags                = var.tags
-  use_name_prefix     = true
+  egress_with_cidr_blocks  = var.sg_egress_with_cidr_blocks
+  tags                     = var.tags
+  use_name_prefix          = true
 }
