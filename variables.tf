@@ -253,14 +253,22 @@ variable "certificate_arn" {
   EOF
 }
 
+variable "private_zone" {
+  type        = bool
+  default     = false
+  description = <<EOF
+    Indicates whether the zone is private or not.
+  EOF
+}
+
 #################################################################
 # ECS
 #################################################################
-variable "lb_target_group_arn" {
-  type        = string
-  default     = null
+variable "lb_target_group_arns" {
+  type        = list(string)
+  default     = []
   description = <<EOF
-    This is the arn of load balancer target group that's used for Superblocks Agent.
+    These are the additional arns of load balancer target group that's used for Superblocks Agent.
     Required if 'create_lb' is set to false.
   EOF
 }
@@ -301,10 +309,10 @@ variable "create_ecs_sg" {
   description = "Whether to create default security group for ECS or not."
 }
 
-variable "load_balancer_sg_ids" {
+variable "allowed_load_balancer_sg_ids" {
   type        = list(string)
   default     = []
-  description = "Specify loadbalancer security group ids to allow traffic from. Only used when create_ecs_sg is set to true."
+  description = "Specify any number of loadbalancer security group ids to allow traffic from. If the loadbalancer is created via this module, it is automatically added. Only used when create_ecs_sg is set to true."
 }
 
 variable "ecs_sg_egress_with_cidr_blocks" {

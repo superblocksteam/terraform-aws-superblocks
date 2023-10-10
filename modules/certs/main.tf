@@ -3,7 +3,9 @@ locals {
 }
 
 data "aws_route53_zone" "superblocks" {
-  name = var.zone_name
+  name         = var.zone_name
+  private_zone = var.private_zone
+  vpc_id       = var.vpc_id
 }
 
 resource "aws_acm_certificate" "superblocks" {

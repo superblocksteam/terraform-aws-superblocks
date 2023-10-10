@@ -34,6 +34,7 @@ module "lb" {
   sg_ingress_with_cidr_blocks = var.lb_sg_ingress_with_cidr_blocks
   sg_egress_with_cidr_blocks  = var.lb_sg_egress_with_cidr_blocks
 
+  private_zone = var.private_zone
 }
 
 #################################################################
@@ -43,8 +44,10 @@ module "certs" {
   count  = var.create_certs ? 1 : 0
   source = "./modules/certs"
 
-  zone_name   = var.domain
-  record_name = var.subdomain
+  zone_name    = var.domain
+  record_name  = var.subdomain
+  private_zone = var.private_zone
+  vpc_id       = var.private_zone ? local.vpc_id : null
 }
 
 #################################################################
@@ -57,7 +60,7 @@ module "ecs" {
   region             = local.region
   subnet_ids         = local.ecs_subnet_ids
   security_group_ids = var.ecs_security_group_ids
-  target_group_arn   = local.lb_target_group_arn
+  target_group_arns  = local.lb_target_group_arns
 
   task_role_arn = var.superblocks_agent_role_arn
 
@@ -83,7 +86,7 @@ module "ecs" {
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_AGENT_TAGS", "value" : "${local.superblocks_agent_tags}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value" : "${var.superblocks_agent_data_domain}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" }
-    ], var.superblocks_agent_environment_variables)
+  ], var.superblocks_agent_environment_variables)
 
   container_cpu          = var.container_cpu
   container_memory       = var.container_memory
@@ -91,7 +94,7 @@ module "ecs" {
   container_max_capacity = var.container_max_capacity
 
   create_sg                  = var.create_ecs_sg
-  load_balancer_sg_ids       = concat(var.create_lb_sg && var.create_lb ? [module.lb[0].lb_security_group_id] : [], var.load_balancer_sg_ids)
+  load_balancer_sg_ids       = concat(var.create_lb_sg && var.create_lb ? [module.lb[0].lb_security_group_id] : [], var.allowed_load_balancer_sg_ids)
   sg_egress_with_cidr_blocks = var.ecs_sg_egress_with_cidr_blocks
   vpc_id                     = local.vpc_id
 

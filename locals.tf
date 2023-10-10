@@ -21,7 +21,7 @@ locals {
   lb_subnet_ids  = var.create_vpc ? module.vpc[0].lb_subnet_ids : var.lb_subnet_ids
   ecs_subnet_ids = var.create_vpc ? module.vpc[0].ecs_subnet_ids : var.ecs_subnet_ids
 
-  lb_target_group_arn = var.create_lb ? module.lb[0].target_group_arn : var.lb_target_group_arn
+  lb_target_group_arns = var.create_lb ? concat([module.lb[0].target_group_arn], var.lb_target_group_arns) : var.lb_target_group_arns
 
   certificate_arn = var.create_certs ? module.certs[0].certificate_arn : var.certificate_arn
   agent_host_url  = "https://${var.subdomain}.${var.domain}"

@@ -12,20 +12,21 @@ module "internal_cert" {
 }
 
 module "internal_lb" {
-  source = "superblocksteam/superblocks/aws//modules/lb"
+  source  = "superblocksteam/superblocks/aws//modules/load-balancer"
+  version = "~1.0"
 
   name_prefix = "private"
-  internal = true
-  vpc_id   = module.terraform_aws_superblocks.vpc_id
+  internal    = true
+  vpc_id      = module.terraform_aws_superblocks.vpc_id
 
-  subnet_ids  = module.terraform_aws_superblocks.lb_subnet_ids
+  subnet_ids         = module.terraform_aws_superblocks.lb_subnet_ids
   security_group_ids = ["sg-1234567890"]
 
-  create_dns = true
-  zone_name  = "clarkthekoala.com"
+  create_dns  = true
+  zone_name   = "clarkthekoala.com"
   record_name = "private-agent"
 
-  create_sg = false
+  create_sg = true
 
   certificate_arn = module.internal_cert.certificate_arn
 }
@@ -39,6 +40,9 @@ module "terraform_aws_superblocks" {
   create_vpc = true
   domain     = "clarkthekoala.com"
   subdomain  = "public-agent"
+
+  lb_target_group_arns = [module.internal_lb.target_group_arn]
+  allowed_load_balancer_sg_ids = [module.internal_lb.lb_security_group_id]
 
   superblocks_agent_key = "my-superblocks-agent-key"
 }

@@ -16,6 +16,11 @@ variable "vpc_id" {
   type = string
 }
 
+variable "private_zone" {
+  type    = bool
+  default = false
+}
+
 variable "subnet_ids" {
   type = list(string)
 }
@@ -50,7 +55,8 @@ variable "create_dns" {
 }
 
 variable "zone_name" {
-  type = string
+  type    = string
+  default = null
 }
 
 variable "record_name" {
