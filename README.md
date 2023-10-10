@@ -95,7 +95,7 @@ A new Elastic Load Balancer will be created by default to handle TLS termination
 
 ```terraform
 create_lb = false
-lb_target_group_arn = "<YOUR_TARGET_GROUP_ARN>"
+lb_target_group_arns = "[<YOUR_TARGET_GROUP_ARNS>]"
 ```
 
 To find your target ground ARN use `aws elbv2 describe-target-groups` or by finding the Load Balancer in the AWS management console.
@@ -136,7 +136,7 @@ By default, security groups will be created for both the loadbalancer and ECS cl
 You can modify the default security ECS group rules with the following variables:
 
 ```terraform
-variable "load_balancer_sg_ids" {
+variable "allowed_load_balancer_sg_ids" {
   type        = list(string)
   default     = []
   description = "Specify loadbalancer security group ids to allow traffic from. Only used when create_ecs_sg is set to true."

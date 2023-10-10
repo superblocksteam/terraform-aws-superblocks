@@ -71,7 +71,7 @@ module "terraform_aws_superblocks" {
   certificate_arn = "arn:aws:acm:us-west-2:361919038798:certificate/45193203-ac25-4f0c-8a5f-9c57f0c47262"
 
   # Not actually used in this example since we are creating the LB as part of this module
-  lb_target_group_arn    = "arn:aws:elasticloadbalancing:us-west-2:361919038798:targetgroup/1234567890/1234567890"
+  lb_target_group_arns   = ["arn:aws:elasticloadbalancing:us-west-2:361919038798:targetgroup/1234567890/1234567890"]
   container_cpu          = 1024
   container_memory       = 4096
   container_min_capacity = 1

@@ -20,10 +20,13 @@ resource "aws_ecs_service" "superblocks" {
   desired_count   = var.container_min_capacity
   launch_type     = "FARGATE"
 
-  load_balancer {
-    target_group_arn = var.target_group_arn
-    container_name   = "superblocks-agent"
-    container_port   = var.container_port
+  dynamic "load_balancer" {
+    for_each = var.target_group_arns
+    content {
+      target_group_arn = load_balancer.value
+      container_name   = "superblocks-agent"
+      container_port   = var.container_port
+    }
   }
 
   network_configuration {

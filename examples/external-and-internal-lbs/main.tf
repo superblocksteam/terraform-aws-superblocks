@@ -26,15 +26,9 @@ module "internal_lb" {
   zone_name   = "clarkthekoala.com"
   record_name = "private-agent"
 
-  create_sg = false
+  create_sg = true
 
   certificate_arn = module.internal_cert.certificate_arn
-}
-
-resource "aws_lb_target_group_attachment" "internal_tg_attachment" {
-  target_group_arn = module.internal_lb.target_group_arn
-  target_id        = module.terraform_aws_superblocks.ecs_service_id
-  port             = 8080
 }
 
 module "terraform_aws_superblocks" {
@@ -46,6 +40,9 @@ module "terraform_aws_superblocks" {
   create_vpc = true
   domain     = "clarkthekoala.com"
   subdomain  = "public-agent"
+
+  lb_target_group_arns = [module.internal_lb.target_group_arn]
+  allowed_load_balancer_sg_ids = [module.internal_lb.lb_security_group_id]
 
   superblocks_agent_key = "my-superblocks-agent-key"
 }

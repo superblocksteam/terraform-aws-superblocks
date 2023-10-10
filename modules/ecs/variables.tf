@@ -28,8 +28,8 @@ variable "security_group_ids" {
   type = list(string)
 }
 
-variable "target_group_arn" {
-  type = string
+variable "target_group_arns" {
+  type = list(string)
 }
 
 variable "ecs_cluster_capacity_providers" {

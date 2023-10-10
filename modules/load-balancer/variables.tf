@@ -56,7 +56,7 @@ variable "create_dns" {
 
 variable "zone_name" {
   type    = string
-  default = "example.com"
+  default = null
 }
 
 variable "record_name" {

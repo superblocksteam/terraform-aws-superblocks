@@ -25,7 +25,3 @@ output "lb_dns_name" {
 output "agent_host_url" {
   value = local.agent_host_url
 }
-
-output "ecs_service_id" {
-  value = module.ecs.ecs_service_id
-}
