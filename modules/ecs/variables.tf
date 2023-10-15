@@ -117,3 +117,9 @@ variable "sg_egress_with_cidr_blocks" {
     }
   ]
 }
+
+variable "additional_ecs_execution_task_policy_arns" {
+  type        = list(string)
+  default     = []
+  description = "List of ARNs of Additional iam policy to attach to the ECS execution role"
+}

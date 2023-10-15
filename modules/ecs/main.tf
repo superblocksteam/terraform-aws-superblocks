@@ -77,7 +77,7 @@ resource "aws_ecs_task_definition" "superblocks_agent" {
 }
 
 ####################################################################
-# ECS Task Role
+# ECS Task Execution Role
 ####################################################################
 resource "aws_iam_role" "superblocks_agent_role" {
   name_prefix        = "${var.name_prefix}-agent-role"
@@ -96,6 +96,8 @@ resource "aws_iam_role" "superblocks_agent_role" {
   ]
 }
 EOF
+
+  managed_policy_arns = concat([aws_iam_policy.superblocks_agent_policy.arn], var.additional_ecs_execution_task_policy_arns)
 
   tags = var.tags
 }
@@ -120,11 +122,6 @@ resource "aws_iam_policy" "superblocks_agent_policy" {
 EOF
 
   tags = var.tags
-}
-
-resource "aws_iam_role_policy_attachment" "policy-attach" {
-  role       = aws_iam_role.superblocks_agent_role.name
-  policy_arn = aws_iam_policy.superblocks_agent_policy.arn
 }
 
 ####################################################################

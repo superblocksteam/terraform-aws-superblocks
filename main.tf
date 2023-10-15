@@ -62,7 +62,8 @@ module "ecs" {
   security_group_ids = var.ecs_security_group_ids
   target_group_arns  = local.lb_target_group_arns
 
-  task_role_arn = var.superblocks_agent_role_arn
+  additional_ecs_execution_task_policy_arns = var.additional_ecs_execution_task_policy_arns
+  task_role_arn                             = var.superblocks_agent_role_arn
 
   container_port  = local.superblocks_http_port
   container_image = var.superblocks_agent_image
