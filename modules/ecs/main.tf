@@ -97,8 +97,6 @@ resource "aws_iam_role" "superblocks_agent_role" {
 }
 EOF
 
-  managed_policy_arns = concat([aws_iam_policy.superblocks_agent_policy.arn], var.additional_ecs_execution_task_policy_arns)
-
   tags = var.tags
 }
 
@@ -122,6 +120,14 @@ resource "aws_iam_policy" "superblocks_agent_policy" {
 EOF
 
   tags = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "superblocks_agent_policy_attachment" {
+  for_each = toset(
+    concat([aws_iam_policy.superblocks_agent_policy.arn], var.additional_ecs_execution_task_policy_arns)
+  )
+  role       = aws_iam_role.superblocks_agent_role.name
+  policy_arn = each.value
 }
 
 ####################################################################
