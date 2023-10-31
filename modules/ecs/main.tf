@@ -1,3 +1,7 @@
+locals {
+  policies = concat([aws_iam_policy.superblocks_agent_policy.arn], var.additional_ecs_execution_task_policy_arns)
+}
+
 resource "aws_ecs_cluster" "superblocks" {
   name = "${var.name_prefix}-cluster"
   setting {
@@ -123,11 +127,9 @@ EOF
 }
 
 resource "aws_iam_role_policy_attachment" "superblocks_agent_policy_attachment" {
-  for_each = toset(
-    concat([aws_iam_policy.superblocks_agent_policy.arn], var.additional_ecs_execution_task_policy_arns)
-  )
+  count      = length(local.policies)
   role       = aws_iam_role.superblocks_agent_role.name
-  policy_arn = each.value
+  policy_arn = local.policies[count.index]
 }
 
 ####################################################################
