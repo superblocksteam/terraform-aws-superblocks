@@ -25,3 +25,8 @@ output "lb_dns_name" {
 output "agent_host_url" {
   value = local.agent_host_url
 }
+
+# The ecs execution agent role
+output "ecs_execution_agent_role" {
+  value = module.ecs.superblocks_agent_role
+}

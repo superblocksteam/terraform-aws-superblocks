@@ -1,3 +1,7 @@
+locals {
+  policies = concat([aws_iam_policy.superblocks_agent_policy.arn], var.additional_ecs_execution_task_policy_arns)
+}
+
 resource "aws_ecs_cluster" "superblocks" {
   name = "${var.name_prefix}-cluster"
   setting {
@@ -77,7 +81,7 @@ resource "aws_ecs_task_definition" "superblocks_agent" {
 }
 
 ####################################################################
-# ECS Task Role
+# ECS Task Execution Role
 ####################################################################
 resource "aws_iam_role" "superblocks_agent_role" {
   name_prefix        = "${var.name_prefix}-agent-role"
@@ -122,9 +126,10 @@ EOF
   tags = var.tags
 }
 
-resource "aws_iam_role_policy_attachment" "policy-attach" {
+resource "aws_iam_role_policy_attachment" "superblocks_agent_policy_attachment" {
+  count      = length(local.policies)
   role       = aws_iam_role.superblocks_agent_role.name
-  policy_arn = aws_iam_policy.superblocks_agent_policy.arn
+  policy_arn = local.policies[count.index]
 }
 
 ####################################################################

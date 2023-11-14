@@ -328,3 +328,9 @@ variable "ecs_sg_egress_with_cidr_blocks" {
   ]
   description = "Specify egress rules for the ECS cluster. Only used if create_ecs_sg is set to true."
 }
+
+variable "additional_ecs_execution_task_policy_arns" {
+  type        = list(string)
+  default     = []
+  description = "List of ARNs of Additional iam policy to attach to the ECS execution role"
+}

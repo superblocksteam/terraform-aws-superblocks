@@ -212,6 +212,201 @@ variable "ecs_security_group_ids" {
 }
 ```
 
+#### ECS Task Roles
+
+##### ECS Task Execution IAM Role and Policies
+
+The ECS Task Execution Role enables the ECS container and Fargate agents permmissions to do core actions on AWS necessary for the functioning of the container. This is different than the ECS Task Role which is described below and is to give your application permission to access AWS APIs.
+
+By default you don't have to do anything and the [ECS Task Execution IAM Role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html?icmpid=docs_ecs_hp-task-definition) is created and setup to minimally enable your ECS container to send logs to CloudWatch.
+
+If you need to enable the ECS task to have additional IAM permisions to do things like pull containers from AWS ECR private repository, you will need to add an additional policy to the automatically created Task Execution Role.
+
+This can be accomplished in two ways.
+
+###### Using the `additional_ecs_execution_task_policy_arns` parameter.
+
+``` terraform
+variable "additional_ecs_execution_task_policy_arns" {
+  type        = list(string)
+  default     = []
+  description = "List of ARNs of Additional iam policy to attach to the ECS execution role"
+}
+```
+
+You can do this by passing in a list of ARNs for policies you create in your Terraform module as shown in this example:
+
+``` terraform
+data "aws_iam_policy_document" "execution_ecr_policy" {
+  statement {
+    sid    = "allowECR"
+    effect = "Allow"
+    actions = [
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:GetAuthorizationToken"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "ecr_policy" {
+  name        = "superblocks-agent-ecr-policy"
+  description = "IAM Policy to allow access to ECR"
+  policy      = data.aws_iam_policy_document.execution_ecr_policy.json
+}
+
+module "terraform_aws_superblocks" {
+  source  = "superblocksteam/superblocks/aws"
+  version = ">=0.1.0"
+
+    additional_ecs_execution_task_policy_arns = [aws_iam_policy.ecr_policy]
+
+  # ... The rest of your config ...
+}
+
+```
+
+###### Create and attach the policies in your own module
+
+The other option is to get the Task Execution Role name (`module.superblocks_agent.ecs_execution_agent_role.name`) from the output of `terraform-aws-superblocks` and attach your policies to the role.
+
+An example of doing this in your Terraform module using the policy creation shown in the previous example. Instead of using `additional_ecs_execution_task_policy_arns = [aws_iam_policy.ecr_policy]` you could attach the policy directly to the Task Execution Role yourself:
+
+``` terraform
+resource "aws_iam_role_policy_attachment" "ecr_policy_attachment" {
+  role       = module.superblocks_agent.ecs_execution_agent_role.name
+  policy_arn = aws_iam_policy.ecr_policy.arn
+
+  depends_on = [
+    module.superblocks_agent
+  ]
+}
+
+```
+
+##### ECS Task IAM Role and Policies
+
+The [_Task IAM Role_](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html) is different and in addition to the _Task Execution Role_. The `Task IAM Role` is optional, but you will need it if you want to leverage instance credentials you get automatically from the Container Credential Provider to access other AWS APIs via an SDK.
+
+__NOTE: As of this writing (10/14/2023) instance credentials for Python boto3 doesn't actually work in SuperBlocks. But a ticket is in process to fix this__
+
+To use this, you must:
+* Create the Role (its different than the _Task Execution Role_)
+* Create the policy to give the kind of access you want
+* Attach the policy to the role
+* Pass in the ARN of the role to the SuperBlocks terraform module
+
+The definition for the parameter to pass in the role ARN is:
+
+``` terraform
+variable "superblocks_agent_role_arn" {
+  type        = string
+  default     = null
+  description = "ARN of the Task IAM role (not the Task Execution) that allows the Superblocks Agent container(s) to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
+}
+```
+An example of doing this to give access to an S3 bucket:
+
+``` terraform
+# List of buckets we want to control access to
+locals {
+  s3_buckets_list = [
+    "my-bucket-000",
+    "my-bucket-001",
+    "my-bucket-002"
+  ]
+}
+
+# Policy to allow read acccess to some S3 buckets
+data "aws_iam_policy_document" "s3_read_access" {
+  statement {
+    sid    = "allowListAllMyBucketsS3"
+    effect = "Allow"
+
+    actions = [
+      "s3:ListAllMyBuckets"
+    ]
+
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "allowListS3"
+    effect = "Allow"
+
+    actions = [
+      "s3:ListBucket"
+    ]
+
+    resources = formatlist("arn:aws:s3:::%s", local.s3_buckets_list)
+  }
+
+  statement {
+    sid    = "allowReadS3"
+    effect = "Allow"
+
+    actions = [
+      "s3:GetObject"
+    ]
+
+    resources = distinct(
+      compact(
+        concat(
+          formatlist("arn:aws:s3:::%s", local.s3_buckets_list),
+          formatlist("arn:aws:s3:::%s/*", local.s3_buckets_list)
+        )
+      )
+    )
+  }
+}
+
+# Create an actual policy from the previous definition
+resource "aws_iam_policy" "s3_policy" {
+  name        = "superblocks-agent-s3-access-policy"
+  description = "IAM Policy to allow readonly access to s3 buckets"
+  policy      = data.aws_iam_policy_document.s3_read_access.json
+}
+
+# Define the assume_role policy for the Task Role
+data "aws_iam_policy_document" "assume_role" {
+  statement {
+    sid = "AllowECSService"
+    actions = [
+      "sts:AssumeRole"
+    ]
+
+    effect = "Allow"
+    principals {
+      type = "Service"
+      identifiers = [
+        "ecs-tasks.amazonaws.com"
+      ]
+    }
+  }
+}
+
+# Create the Task Role and attach the assume role and the s3 policy
+resource "aws_iam_role" "superblocks_agent_task" {
+  name               = "superblocks-agent-task"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+  managed_policy_arns = [
+    aws_iam_policy.s3_policy.arn
+  ]
+}
+
+module "terraform_aws_superblocks" {
+    source  = "superblocksteam/superblocks/aws"
+    version = ">=0.1.0"
+
+    superblocks_agent_role_arn = aws_iam_role.superblocks_agent_task.arn
+
+  # ... The rest of your config ...
+}
+
+```
+
+
 #### Other Configurable Options
 
 ```terraform
@@ -235,12 +430,6 @@ variable "superblocks_agent_image" {
   type        = string
   default     = "ghcr.io/superblocksteam/agent"
   description = "The docker image used by Superblocks Agent container instance"
-}
-
-variable "superblocks_agent_role_arn" {
-  type        = string
-  default     = null
-  description = "ARN of IAM role that allows the Superblocks Agent container(s) to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
 }
 
 variable "name_prefix" {
