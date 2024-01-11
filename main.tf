@@ -86,7 +86,12 @@ module "ecs" {
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_AGENT_ENVIRONMENT", "value" : "${var.superblocks_agent_environment}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_AGENT_TAGS", "value" : "${local.superblocks_agent_tags}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value" : "${var.superblocks_agent_data_domain}" },
-      { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" }
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" },
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_SIGNATURE_SIGNING_KEY_ID", "value" : "${var.superblocks_agent_signing_key_id}" },
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_SIGNATURE_VERIFICATION_KEY_IDS", "value" : "${join(" ", var.superblocks_agent_verification_key_ids)}" },
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_SIGNATURE_KEYS", "value" : "${join(",", var.superblocks_agent_signature_keys.join)}" },
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_SIGNATURE_ENABLED", "value" : "${var.superblocks_agent_signature_enabled}" },
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_RESIGNER_ENABLED", "value" : "${var.superblocks_agent_resigner_enabled}" }
   ], var.superblocks_agent_environment_variables)
 
   container_cpu          = var.container_cpu
