@@ -105,6 +105,12 @@ variable "load_balancer_sg_ids" {
   default = []
 }
 
+variable "repository_credentials_secret_arn" {
+  type        = string
+  default     = null
+  description = "ARN of the secret that contains the credentials for the private repository."
+}
+
 variable "sg_egress_with_cidr_blocks" {
   type = list(map(string))
   default = [

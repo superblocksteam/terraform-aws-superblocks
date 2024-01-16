@@ -57,6 +57,9 @@ resource "aws_ecs_task_definition" "superblocks_agent" {
       "cpu": ${var.container_cpu},
       "memory": ${var.container_memory},
       "essential": true,
+      "repositoryCredentials": {
+        "credentialsParameter": "${var.repository_credentials_secret_arn}"
+      },
       "portMappings": [
         {
           "containerPort": ${var.container_port},
