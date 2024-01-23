@@ -31,7 +31,7 @@ To get started, you'll need a `superblocks_agent_key`. To generate an agent key,
 ```terraform
 module "terraform_aws_superblocks" {
   source  = "superblocksteam/superblocks/aws"
-  version = ">=0.1.0"
+  version = "~>1.0"
 
   vpc_id         = "[VPC_ID]"
   lb_subnet_ids  = "[LIST_OF_SUBNET_IDS_FOR_LOAD_BALANCER]"
