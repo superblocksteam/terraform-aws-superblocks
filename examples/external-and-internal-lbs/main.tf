@@ -33,7 +33,7 @@ module "internal_lb" {
 
 module "terraform_aws_superblocks" {
   source  = "superblocksteam/superblocks/aws"
-  version = "~1.0"
+  version = "~>1.0"
 
   lb_internal = false
 

@@ -19,7 +19,7 @@ locals {
 
 module "terraform_aws_superblocks" {
   source  = "superblocksteam/superblocks/aws"
-  version = "~1.0"
+  version = "~>1.0"
 
   create_lb   = true
   lb_internal = false
