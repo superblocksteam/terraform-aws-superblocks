@@ -31,7 +31,7 @@ To get started, you'll need a `superblocks_agent_key`. To generate an agent key,
 ```terraform
 module "terraform_aws_superblocks" {
   source  = "superblocksteam/superblocks/aws"
-  version = ">=0.1.0"
+  version = "~>1.0"
 
   vpc_id         = "[VPC_ID]"
   lb_subnet_ids  = "[LIST_OF_SUBNET_IDS_FOR_LOAD_BALANCER]"
@@ -258,7 +258,7 @@ resource "aws_iam_policy" "ecr_policy" {
 
 module "terraform_aws_superblocks" {
   source  = "superblocksteam/superblocks/aws"
-  version = ">=0.1.0"
+  version = "~>1.0"
 
     additional_ecs_execution_task_policy_arns = [aws_iam_policy.ecr_policy]
 
@@ -397,7 +397,7 @@ resource "aws_iam_role" "superblocks_agent_task" {
 
 module "terraform_aws_superblocks" {
     source  = "superblocksteam/superblocks/aws"
-    version = ">=0.1.0"
+    version = "~>1.0"
 
     superblocks_agent_role_arn = aws_iam_role.superblocks_agent_task.arn
 

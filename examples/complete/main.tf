@@ -4,7 +4,7 @@ provider "aws" {
 
 module "terraform_aws_superblocks" {
   source  = "superblocksteam/superblocks/aws"
-  version = "~1.0"
+  version = "~>1.0"
 
   # This will configure the agent URL to be agent.mycompany.com
   domain    = "mycompany.com"
