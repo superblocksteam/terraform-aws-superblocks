@@ -123,3 +123,9 @@ variable "additional_ecs_execution_task_policy_arns" {
   default     = []
   description = "List of ARNs of Additional iam policy to attach to the ECS execution role"
 }
+
+variable "repository_credentials_secret_arn" {
+  type        = string
+  default     = null
+  description = "ARN of the secret that contains the credentials for the private repository."
+}

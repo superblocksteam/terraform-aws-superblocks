@@ -65,8 +65,9 @@ module "ecs" {
   additional_ecs_execution_task_policy_arns = var.additional_ecs_execution_task_policy_arns
   task_role_arn                             = var.superblocks_agent_role_arn
 
-  container_port  = local.superblocks_http_port
-  container_image = var.superblocks_agent_image
+  container_port                    = local.superblocks_http_port
+  container_image                   = var.superblocks_agent_image
+  repository_credentials_secret_arn = var.superblocks_repository_credentials_secret_arn
   # SUPERBLOCKS_AGENT_ENVIRONMENT is being passed for backwards compatibility with older versions of the agent
   container_environment = concat(
     [
