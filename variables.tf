@@ -118,6 +118,38 @@ variable "superblocks_agent_environment_variables" {
   description = "Environment variables that will be passed to the Superblocks Agent container(s). This can be specified in the form of [{name = \"key\", value = \"value\"}]."
 }
 
+### Signing and Resigning
+
+variable "superblocks_agent_signing_key_id" {
+  type        = string
+  default     = null
+  description = "The key id of the signing key used to sign the organization's resources"
+}
+
+variable "superblocks_agent_verification_key_ids" {
+  type        = list(string)
+  default     = []
+  description = "The key ids of the verification keys used to verify the org's resources."
+}
+
+variable "superblocks_agent_signature_keys" {
+  type        = list(string)
+  default     = []
+  description = "The key data specified in the form of <key_id>=<key_data>."
+}
+
+variable "superblocks_agent_signature_enabled" {
+  type        = bool
+  default     = false
+  description = "Whether to enable verification of the organization's resources. Note that all resources MUST have been signed prior to enabling this feature."
+}
+
+variable "superblocks_agent_resigner_enabled" {
+  type        = bool
+  default     = false
+  description = "Whether to enable the resigner. This will allow the agent to bulk sign the organization's resources."
+}
+
 #################################################################
 # VPC
 #################################################################
