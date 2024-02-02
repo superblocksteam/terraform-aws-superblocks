@@ -48,6 +48,12 @@ variable "superblocks_agent_image" {
   description = "The docker image used by Superblocks Agent container instance"
 }
 
+variable "superblocks_repository_credentials_secret_arn" {
+  type        = string
+  default     = null
+  description = "ARN of the secret that contains the credentials for the private repository that contains the agent image. This is necessary if you are using a private repository to host a custom image."
+}
+
 variable "superblocks_server_url" {
   type        = string
   default     = "https://api.superblocks.com"

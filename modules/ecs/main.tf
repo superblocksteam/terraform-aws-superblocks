@@ -1,5 +1,31 @@
 locals {
   policies = concat([aws_iam_policy.superblocks_agent_policy.arn], var.additional_ecs_execution_task_policy_arns)
+  ecs_container_definition = {
+    name      = "superblocks-agent"
+    image     = var.container_image
+    cpu       = var.container_cpu
+    memory    = var.container_memory
+    essential = true
+    repositoryCredentials = var.repository_credentials_secret_arn != null ? {
+      credentialsParameter = var.repository_credentials_secret_arn
+    } : null
+    portMappings = [
+      {
+        containerPort = var.container_port
+        hostPort      = var.container_port
+      }
+    ],
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-create-group  = "true"
+        awslogs-group         = "/superblocks-agent"
+        awslogs-region        = var.region
+        awslogs-stream-prefix = "superblocks-agent"
+      }
+    }
+    environment = var.container_environment
+  }
 }
 
 resource "aws_ecs_cluster" "superblocks" {
@@ -49,34 +75,14 @@ resource "aws_ecs_task_definition" "superblocks_agent" {
   memory                   = var.container_memory
   execution_role_arn       = aws_iam_role.superblocks_agent_role.arn
   task_role_arn            = var.task_role_arn
-  container_definitions    = <<DEFINITION
-  [
-    {
-      "name": "superblocks-agent",
-      "image": "${var.container_image}",
-      "cpu": ${var.container_cpu},
-      "memory": ${var.container_memory},
-      "essential": true,
-      "portMappings": [
-        {
-          "containerPort": ${var.container_port},
-          "hostPort": ${var.container_port}
-        }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-create-group": "true",
-          "awslogs-group": "/superblocks-agent",
-          "awslogs-region": "${var.region}",
-          "awslogs-stream-prefix": "superblocks-agent"
-        }
-      },
-      "environment": ${jsonencode(var.container_environment)}
-    }
-  ]
-  DEFINITION
 
+  container_definitions = jsonencode(
+    [
+      {
+        for k, v in local.ecs_container_definition : k => v if v != null
+      }
+    ]
+  )
   tags = var.tags
 }
 
