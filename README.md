@@ -406,6 +406,14 @@ module "terraform_aws_superblocks" {
 
 ```
 
+#### Private Docker Repository
+
+The Superblocks agent can be extended in various ways. When extending the base image, you'll need to host your own private image. If your custom image is hosted in a **private** container repository, you can set the following variables so the Terraform module has permission to download your container.
+
+```terraform
+superblocks_agent_image = "myprivaterepository.io/my-image:my-tag"
+superblocks_repository_credentials_secret_arn = "arn:aws:secretsmanager:region:my_aws_account_id:my_secret:my_secret_name"
+```
 
 #### Other Configurable Options
 
