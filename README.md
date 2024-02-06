@@ -289,9 +289,10 @@ resource "aws_iam_role_policy_attachment" "ecr_policy_attachment" {
 
 The [_Task IAM Role_](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html) is different and in addition to the _Task Execution Role_. The `Task IAM Role` is optional, but you will need it if you want to leverage instance credentials you get automatically from the Container Credential Provider to access other AWS APIs via an SDK.
 
-__NOTE: As of this writing (10/14/2023) instance credentials for Python boto3 doesn't actually work in SuperBlocks. But a ticket is in process to fix this__
+**NOTE**: As of this writing (10/14/2023) instance credentials for Python boto3 doesn't actually work in Superblocks. But a ticket is in process to fix this
 
 To use this, you must:
+
 * Create the Role (its different than the _Task Execution Role_)
 * Create the policy to give the kind of access you want
 * Attach the policy to the role
@@ -306,6 +307,7 @@ variable "superblocks_agent_role_arn" {
   description = "ARN of the Task IAM role (not the Task Execution) that allows the Superblocks Agent container(s) to make calls to other AWS services. This can be leveraged for using Superblocks integrations like S3, DynamoDB, etc."
 }
 ```
+
 An example of doing this to give access to an S3 bucket:
 
 ``` terraform
@@ -403,7 +405,6 @@ module "terraform_aws_superblocks" {
 
   # ... The rest of your config ...
 }
-
 ```
 
 #### Private Docker Repository
