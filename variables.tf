@@ -96,7 +96,7 @@ variable "superblocks_grpc_msg_res_max" {
 
 variable "superblocks_agent_quotas_default_api_timeout" {
   type        = string
-  default     = "3600000"
+  default     = "600000"
   description = "The default api timeout in milliseconds."
 }
 
