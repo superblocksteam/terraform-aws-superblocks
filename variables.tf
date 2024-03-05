@@ -94,6 +94,12 @@ variable "superblocks_grpc_msg_res_max" {
   description = "The maximum message size in bytes allowed to be sent by the gRPC server. This is used to prevent malicious clients from sending large messages to cause memory exhaustion."
 }
 
+variable "superblocks_agent_quotas_default_api_timeout" {
+  type        = string
+  default     = "600000"
+  description = "The default api timeout in milliseconds."
+}
+
 variable "superblocks_grpc_msg_req_max" {
   type        = string
   default     = "30000000"

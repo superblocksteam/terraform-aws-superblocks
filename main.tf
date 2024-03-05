@@ -87,7 +87,8 @@ module "ecs" {
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_AGENT_ENVIRONMENT", "value" : "${var.superblocks_agent_environment}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_AGENT_TAGS", "value" : "${local.superblocks_agent_tags}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value" : "${var.superblocks_agent_data_domain}" },
-      { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" }
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" },
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_QUOTAS_DEFAULT_API_TIMEOUT", "value" : "${var.superblocks_agent_quotas_default_api_timeout}" }
   ], var.superblocks_agent_environment_variables)
 
   container_cpu          = var.container_cpu
