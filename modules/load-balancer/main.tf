@@ -7,9 +7,9 @@ resource "aws_lb" "superblocks" {
   tags               = var.tags
 }
 
-resource "aws_lb_target_group" "superblocks" {
+resource "aws_lb_target_group" "http" {
   name_prefix = substr(var.name_prefix, 0, 6)
-  port        = var.container_port
+  port        = var.container_port_http
   protocol    = "HTTP"
   target_type = "ip"
   vpc_id      = var.vpc_id
@@ -23,6 +23,19 @@ resource "aws_lb_target_group" "superblocks" {
   }
 }
 
+resource "aws_lb_target_group" "grpc" {
+  name_prefix = substr(var.name_prefix, 0, 6)
+  port        = var.container_port_grpc
+  protocol    = "HTTP"
+  protocol_version = "GRPC"
+  target_type = "ip"
+  vpc_id      = var.vpc_id
+  tags        = var.tags
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
 
 data "aws_route53_zone" "superblocks" {
   count = var.create_dns ? 1 : 0
@@ -54,7 +67,29 @@ resource "aws_lb_listener" "superblocks" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.superblocks.arn
+    target_group_arn = aws_lb_target_group.http.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "grpc" {
+  listener_arn = aws_lb_listener.superblocks.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.grpc.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/grpc.reflection.*"]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api.v1.*"]
+    }
   }
 }
 

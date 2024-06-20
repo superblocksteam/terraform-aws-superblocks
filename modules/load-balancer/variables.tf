@@ -29,9 +29,14 @@ variable "security_group_ids" {
   type = list(string)
 }
 
-variable "container_port" {
+variable "container_port_http" {
   type    = number
   default = "8080"
+}
+
+variable "container_port_grpc" {
+  type    = number
+  default = "8081"
 }
 
 variable "listener_port" {
