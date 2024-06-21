@@ -56,12 +56,12 @@ module "certs" {
 module "ecs" {
   source = "./modules/ecs"
 
-  name_prefix        = var.name_prefix
-  region             = local.region
-  subnet_ids         = local.ecs_subnet_ids
-  security_group_ids = var.ecs_security_group_ids
-  target_group_http_arns  = local.lb_target_group_http_arns
-  target_group_grpc_arns  = local.lb_target_group_grpc_arns
+  name_prefix            = var.name_prefix
+  region                 = local.region
+  subnet_ids             = local.ecs_subnet_ids
+  security_group_ids     = var.ecs_security_group_ids
+  target_group_http_arns = local.lb_target_group_http_arns
+  target_group_grpc_arns = local.lb_target_group_grpc_arns
 
   additional_ecs_execution_task_policy_arns = var.additional_ecs_execution_task_policy_arns
   task_role_arn                             = var.superblocks_agent_role_arn

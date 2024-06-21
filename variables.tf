@@ -36,10 +36,16 @@ variable "superblocks_agent_tags" {
   EOF
 }
 
-variable "superblocks_agent_port" {
+variable "superblocks_agent_http_port" {
   type        = number
   default     = "8080"
   description = "The http port number used by Superblocks Agent container instance"
+}
+
+variable "superblocks_agent_grpc_port" {
+  type        = number
+  default     = "8081"
+  description = "The grpc port number used by Superblocks Agent container instance"
 }
 
 variable "superblocks_agent_image" {
