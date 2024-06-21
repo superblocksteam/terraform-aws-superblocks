@@ -28,7 +28,11 @@ variable "security_group_ids" {
   type = list(string)
 }
 
-variable "target_group_arns" {
+variable "target_group_http_arns" {
+  type = list(string)
+}
+
+variable "target_group_grpc_arns" {
   type = list(string)
 }
 

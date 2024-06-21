@@ -60,12 +60,14 @@ module "ecs" {
   region             = local.region
   subnet_ids         = local.ecs_subnet_ids
   security_group_ids = var.ecs_security_group_ids
-  target_group_arns  = local.lb_target_group_arns
+  target_group_http_arns  = local.lb_target_group_http_arns
+  target_group_grpc_arns  = local.lb_target_group_grpc_arns
 
   additional_ecs_execution_task_policy_arns = var.additional_ecs_execution_task_policy_arns
   task_role_arn                             = var.superblocks_agent_role_arn
 
-  container_port                    = local.superblocks_http_port
+  container_port_http               = local.superblocks_http_port
+  container_port_grpc               = local.superblocks_grpc_port
   container_image                   = var.superblocks_agent_image
   repository_credentials_secret_arn = var.superblocks_repository_credentials_secret_arn
   # SUPERBLOCKS_AGENT_ENVIRONMENT is being passed for backwards compatibility with older versions of the agent
@@ -73,6 +75,7 @@ module "ecs" {
     [
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_LOG_LEVEL", "value" : "${var.superblocks_log_level}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_HTTP_PORT", "value" : "${local.superblocks_http_port}" },
+      { "name" : "SUPERBLOCKS_ORCHESTRATOR_GRPC_PORT", "value" : "${local.superblocks_grpc_port}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_GRPC_MSG_RES_MAX", "value" : "${var.superblocks_grpc_msg_res_max}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_GRPC_MSG_REQ_MAX", "value" : "${var.superblocks_grpc_msg_req_max}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_SUPERBLOCKS_URL", "value" : "${var.superblocks_server_url}" },

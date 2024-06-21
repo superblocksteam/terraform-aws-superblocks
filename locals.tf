@@ -11,6 +11,7 @@ locals {
   superblocks_agent_tags = var.superblocks_agent_tags != "profile:*" ? var.superblocks_agent_tags : var.superblocks_agent_environment == "*" ? "profile:*" : "profile:${var.superblocks_agent_environment}"
 
   superblocks_http_port = var.superblocks_agent_port
+  superblocks_grpc_port = 8081
 
   tags = merge(var.tags, {
     superblocks_agent_tags = var.superblocks_agent_tags
@@ -21,7 +22,9 @@ locals {
   lb_subnet_ids  = var.create_vpc ? module.vpc[0].lb_subnet_ids : var.lb_subnet_ids
   ecs_subnet_ids = var.create_vpc ? module.vpc[0].ecs_subnet_ids : var.ecs_subnet_ids
 
-  lb_target_group_arns = var.create_lb ? concat([module.lb[0].target_group_arn], var.lb_target_group_arns) : var.lb_target_group_arns
+  lb_target_group_http_arns = var.create_lb ? concat([module.lb[0].target_group_http_arn], var.lb_target_group_http_arns) : var.lb_target_group_http_arns
+  lb_target_group_grpc_arns = var.create_lb ? concat([module.lb[0].target_group_grpc_arn], var.lb_target_group_grpc_arns) : var.lb_target_group_grpc_arns
+
 
   certificate_arn = var.create_certs ? module.certs[0].certificate_arn : var.certificate_arn
   agent_host_url  = "https://${var.subdomain}.${var.domain}"

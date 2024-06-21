@@ -200,6 +200,13 @@ variable "lb_sg_ingress_with_cidr_blocks" {
       protocol    = "tcp"
       description = "HTTPS"
       cidr_blocks = "0.0.0.0/0"
+    },
+    {
+      from_port   = 8443
+      to_port     = 8443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
     }
   ]
   description = "Specify ingress rules for the load balancer. Only used if create_lb_sg is set to true."
@@ -276,11 +283,20 @@ variable "private_zone" {
 #################################################################
 # ECS
 #################################################################
-variable "lb_target_group_arns" {
+variable "lb_target_group_http_arns" {
   type        = list(string)
   default     = []
   description = <<EOF
-    These are the additional arns of load balancer target group that's used for Superblocks Agent.
+    These are the additional arns of http load balancer target group that's used for Superblocks Agent.
+    Required if 'create_lb' is set to false.
+  EOF
+}
+
+variable "lb_target_group_grpc_arns" {
+  type        = list(string)
+  default     = []
+  description = <<EOF
+    These are the additional arns of grpc load balancer target group that's used for Superblocks Agent.
     Required if 'create_lb' is set to false.
   EOF
 }

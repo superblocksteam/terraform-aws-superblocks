@@ -55,11 +55,20 @@ resource "aws_ecs_service" "superblocks" {
   launch_type     = "FARGATE"
 
   dynamic "load_balancer" {
-    for_each = var.target_group_arns
+    for_each = var.target_group_http_arns
     content {
       target_group_arn = load_balancer.value
       container_name   = "superblocks-agent"
       container_port   = var.container_port_http
+    }
+  }
+
+  dynamic "load_balancer" {
+    for_each = var.target_group_grpc_arns
+    content {
+      target_group_arn = load_balancer.value
+      container_name   = "superblocks-agent"
+      container_port   = var.container_port_grpc
     }
   }
 

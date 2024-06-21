@@ -88,6 +88,13 @@ variable "sg_ingress_with_cidr_blocks" {
       protocol    = "tcp"
       description = "HTTPS"
       cidr_blocks = "0.0.0.0/0"
+    },
+    {
+      from_port   = 8443
+      to_port     = 8443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
     }
   ]
 }

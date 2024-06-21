@@ -71,25 +71,17 @@ resource "aws_lb_listener" "superblocks" {
   }
 }
 
-resource "aws_lb_listener_rule" "grpc" {
-  listener_arn = aws_lb_listener.superblocks.arn
-  priority     = 100
+resource "aws_lb_listener" "grpc" {
+  load_balancer_arn = aws_lb.superblocks.arn
+  port              = 8443
+  protocol          = var.listener_protocol
+  ssl_policy        = var.certificate_arn != null ? "ELBSecurityPolicy-2016-08" : null
+  certificate_arn   = var.certificate_arn != null ? var.certificate_arn : null
+  tags              = var.tags
 
-  action {
+  default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.grpc.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/grpc.reflection.*"]
-    }
-  }
-
-  condition {
-    path_pattern {
-      values = ["/api.v1.*"]
-    }
   }
 }
 
