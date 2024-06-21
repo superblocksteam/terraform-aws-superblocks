@@ -36,9 +36,15 @@ variable "superblocks_agent_tags" {
   EOF
 }
 
-variable "superblocks_agent_http_port" {
+variable "superblocks_agent_port" {
   type        = number
   default     = "8080"
+  description = "DEPRECATED: Use superblocks_agent_http_port instead."
+}
+
+variable "superblocks_agent_http_port" {
+  type        = number
+  default     = var.superblocks_agent_port
   description = "The http port number used by Superblocks Agent container instance"
 }
 
@@ -289,9 +295,15 @@ variable "private_zone" {
 #################################################################
 # ECS
 #################################################################
-variable "lb_target_group_http_arns" {
+variable "lb_target_group_arns" {
   type        = list(string)
   default     = []
+  description = "DEPRECATED: Use lb_target_group_http_arns instead."
+}
+
+variable "lb_target_group_http_arns" {
+  type        = list(string)
+  default     = var.lb_target_group_arns
   description = <<EOF
     These are the additional arns of http load balancer target group that's used for Superblocks Agent.
     Required if 'create_lb' is set to false.
