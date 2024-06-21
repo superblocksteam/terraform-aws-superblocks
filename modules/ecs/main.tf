@@ -11,8 +11,12 @@ locals {
     } : null
     portMappings = [
       {
-        containerPort = var.container_port
-        hostPort      = var.container_port
+        containerPort = var.container_port_http
+        hostPort      = var.container_port_http
+      },
+      {
+        containerPort = var.container_port_grpc
+        hostPort      = var.container_port_grpc
       }
     ],
     logConfiguration = {
@@ -51,11 +55,20 @@ resource "aws_ecs_service" "superblocks" {
   launch_type     = "FARGATE"
 
   dynamic "load_balancer" {
-    for_each = var.target_group_arns
+    for_each = var.target_group_http_arns
     content {
       target_group_arn = load_balancer.value
       container_name   = "superblocks-agent"
-      container_port   = var.container_port
+      container_port   = var.container_port_http
+    }
+  }
+
+  dynamic "load_balancer" {
+    for_each = var.target_group_grpc_arns
+    content {
+      target_group_arn = load_balancer.value
+      container_name   = "superblocks-agent"
+      container_port   = var.container_port_grpc
     }
   }
 
@@ -187,15 +200,24 @@ module "ecs_security_group" {
   version = ">=5.0.0"
   name    = "${var.name_prefix}-ecs-sg"
   vpc_id  = var.vpc_id
-  ingress_with_source_security_group_id = [for sg_id in var.load_balancer_sg_ids :
-    {
-      from_port                = var.container_port
-      to_port                  = var.container_port
-      protocol                 = "tcp"
-      description              = "Ingress from load balancer"
-      source_security_group_id = sg_id
-    }
-  ]
+  ingress_with_source_security_group_id = flatten([
+    for sg_id in var.load_balancer_sg_ids : [
+      {
+        from_port                = var.container_port_http
+        to_port                  = var.container_port_http
+        protocol                 = "tcp"
+        description              = "Ingress from load balancer"
+        source_security_group_id = sg_id
+      },
+      {
+        from_port                = var.container_port_grpc
+        to_port                  = var.container_port_grpc
+        protocol                 = "tcp"
+        description              = "Ingress from load balancer"
+        source_security_group_id = sg_id
+      }
+    ]
+  ])
   egress_with_cidr_blocks = var.sg_egress_with_cidr_blocks
   tags                    = var.tags
   use_name_prefix         = true

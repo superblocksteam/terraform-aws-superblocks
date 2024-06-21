@@ -39,7 +39,19 @@ variable "superblocks_agent_tags" {
 variable "superblocks_agent_port" {
   type        = number
   default     = "8080"
+  description = "DEPRECATED: Use superblocks_agent_http_port instead."
+}
+
+variable "superblocks_agent_http_port" {
+  type        = number
+  default     = var.superblocks_agent_port
   description = "The http port number used by Superblocks Agent container instance"
+}
+
+variable "superblocks_agent_grpc_port" {
+  type        = number
+  default     = "8081"
+  description = "The grpc port number used by Superblocks Agent container instance"
 }
 
 variable "superblocks_agent_image" {
@@ -200,6 +212,13 @@ variable "lb_sg_ingress_with_cidr_blocks" {
       protocol    = "tcp"
       description = "HTTPS"
       cidr_blocks = "0.0.0.0/0"
+    },
+    {
+      from_port   = 8443
+      to_port     = 8443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
     }
   ]
   description = "Specify ingress rules for the load balancer. Only used if create_lb_sg is set to true."
@@ -279,8 +298,23 @@ variable "private_zone" {
 variable "lb_target_group_arns" {
   type        = list(string)
   default     = []
+  description = "DEPRECATED: Use lb_target_group_http_arns instead."
+}
+
+variable "lb_target_group_http_arns" {
+  type        = list(string)
+  default     = var.lb_target_group_arns
   description = <<EOF
-    These are the additional arns of load balancer target group that's used for Superblocks Agent.
+    These are the additional arns of http load balancer target group that's used for Superblocks Agent.
+    Required if 'create_lb' is set to false.
+  EOF
+}
+
+variable "lb_target_group_grpc_arns" {
+  type        = list(string)
+  default     = []
+  description = <<EOF
+    These are the additional arns of grpc load balancer target group that's used for Superblocks Agent.
     Required if 'create_lb' is set to false.
   EOF
 }

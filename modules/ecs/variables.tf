@@ -28,7 +28,11 @@ variable "security_group_ids" {
   type = list(string)
 }
 
-variable "target_group_arns" {
+variable "target_group_http_arns" {
+  type = list(string)
+}
+
+variable "target_group_grpc_arns" {
   type = list(string)
 }
 
@@ -46,9 +50,14 @@ variable "container_environment" {
   default = []
 }
 
-variable "container_port" {
+variable "container_port_http" {
   type    = number
   default = "8080"
+}
+
+variable "container_port_grpc" {
+  type    = number
+  default = "8081"
 }
 
 variable "container_cpu" {

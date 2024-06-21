@@ -29,9 +29,14 @@ variable "security_group_ids" {
   type = list(string)
 }
 
-variable "container_port" {
+variable "container_port_http" {
   type    = number
   default = "8080"
+}
+
+variable "container_port_grpc" {
+  type    = number
+  default = "8081"
 }
 
 variable "listener_port" {
@@ -80,6 +85,13 @@ variable "sg_ingress_with_cidr_blocks" {
     {
       from_port   = 443
       to_port     = 443
+      protocol    = "tcp"
+      description = "HTTPS"
+      cidr_blocks = "0.0.0.0/0"
+    },
+    {
+      from_port   = 8443
+      to_port     = 8443
       protocol    = "tcp"
       description = "HTTPS"
       cidr_blocks = "0.0.0.0/0"

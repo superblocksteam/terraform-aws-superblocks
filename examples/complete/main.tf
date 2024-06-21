@@ -16,7 +16,7 @@ module "terraform_aws_superblocks" {
 
   superblocks_agent_tags = "profile:production"
 
-  superblocks_agent_port = 8080
+  superblocks_agent_http_port = 8080
 
   superblocks_agent_image = "ghcr.io/superblocksteam/agent:v1.0.0"
 
