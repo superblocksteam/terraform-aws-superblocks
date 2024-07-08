@@ -36,15 +36,9 @@ variable "superblocks_agent_tags" {
   EOF
 }
 
-variable "superblocks_agent_port" {
-  type        = number
-  default     = "8080"
-  description = "DEPRECATED: Use superblocks_agent_http_port instead."
-}
-
 variable "superblocks_agent_http_port" {
   type        = number
-  default     = var.superblocks_agent_port
+  default     = "8080"
   description = "The http port number used by Superblocks Agent container instance"
 }
 
