@@ -8,7 +8,7 @@ locals {
 module "vpc" {
   count       = var.create_vpc ? 1 : 0
   source      = "./modules/vpc"
-  name_prefix = var.name_prefix
+  name = "${var.name_prefix}-vpc"
 }
 
 #################################################################

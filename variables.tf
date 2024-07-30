@@ -141,7 +141,7 @@ variable "superblocks_agent_environment_variables" {
 #################################################################
 variable "create_vpc" {
   type        = bool
-  default     = false
+  default     = true
   description = "Whether to create default VPC or not."
 }
 
@@ -174,7 +174,7 @@ variable "create_lb" {
 
 variable "lb_internal" {
   type        = bool
-  default     = true
+  default     = false
   description = "When it's set to false, load balancer is accessible in public network."
 }
 
@@ -263,7 +263,7 @@ variable "domain" {
 
 variable "subdomain" {
   type        = string
-  default     = "superblocks-agent"
+  default     = "agent"
   description = <<EOF
     This is the intended subdomain name of your Superblocks Agent. This will be used to setup your certificate and loadbalancer and registration of the agent against the Superblocks Server.
   EOF
