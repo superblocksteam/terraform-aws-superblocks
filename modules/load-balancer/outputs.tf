@@ -11,7 +11,7 @@ output "target_group_http_arn" {
 }
 
 output "target_group_grpc_arn" {
-  value = aws_lb_target_group.grpc.arn
+  value = try(aws_lb_target_group.grpc[0].arn, "")
 }
 
 output "lb_security_group_id" {
