@@ -289,15 +289,10 @@ variable "private_zone" {
 #################################################################
 # ECS
 #################################################################
-variable "lb_target_group_arns" {
-  type        = list(string)
-  default     = []
-  description = "DEPRECATED: Use lb_target_group_http_arns instead."
-}
 
 variable "lb_target_group_http_arns" {
   type        = list(string)
-  default     = var.lb_target_group_arns
+  default     = []
   description = <<EOF
     These are the additional arns of http load balancer target group that's used for Superblocks Agent.
     Required if 'create_lb' is set to false.
