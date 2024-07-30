@@ -87,12 +87,10 @@ resource "aws_lb_listener" "grpc" {
 
 module "loadbalancer_security_group" {
   count                    = var.create_sg ? 1 : 0
-  source                   = "terraform-aws-modules/security-group/aws"
-  version                  = ">=5.0.0"
+  source                   = "../security-group"
   name                     = "${var.name_prefix}-lb-sg"
   vpc_id                   = var.vpc_id
   ingress_with_cidr_blocks = var.sg_ingress_with_cidr_blocks
   egress_with_cidr_blocks  = var.sg_egress_with_cidr_blocks
   tags                     = var.tags
-  use_name_prefix          = true
 }
