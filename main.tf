@@ -7,8 +7,8 @@ locals {
 #################################################################
 module "vpc" {
   count       = var.create_vpc ? 1 : 0
-  source      = "./modules/vpc"
-  name_prefix = var.name_prefix
+  source      = "./modules/vpc-upstream"
+  name = "${var.name_prefix}-vpc"
 }
 
 #################################################################
