@@ -54,6 +54,11 @@ variable "certificate_arn" {
   default = null
 }
 
+variable "ssl_enable" {
+  type    = bool
+  default = true
+}
+
 variable "create_dns" {
   type    = bool
   default = false

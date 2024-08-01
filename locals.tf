@@ -27,5 +27,6 @@ locals {
 
 
   certificate_arn = var.create_certs ? module.certs[0].certificate_arn : var.certificate_arn
+  lb_ssl = var.create_certs ? true : var.certificate_arn != null
   agent_host_url  = "https://${var.subdomain}.${var.domain}"
 }

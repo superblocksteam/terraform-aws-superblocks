@@ -24,7 +24,7 @@ resource "aws_lb_target_group" "http" {
 }
 
 resource "aws_lb_target_group" "grpc" {
-  count = var.certificate_arn != null ? 1 : 0
+  count = var.ssl_enable ? 1 : 0
 
   name_prefix = substr(var.name_prefix, 0, 6)
   port        = var.container_port_grpc
@@ -74,7 +74,7 @@ resource "aws_lb_listener" "superblocks" {
 }
 
 resource "aws_lb_listener" "grpc" {
-  count = var.certificate_arn != null ? 1 : 0
+  count = var.ssl_enable ? 1 : 0
 
   load_balancer_arn = aws_lb.superblocks.arn
   port              = 8443

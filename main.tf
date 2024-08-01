@@ -24,6 +24,7 @@ module "lb" {
   subnet_ids         = local.lb_subnet_ids
   security_group_ids = var.lb_security_group_ids
   certificate_arn    = local.certificate_arn
+  ssl_enable         = local.lb_ssl
   zone_name          = var.domain
   record_name        = var.subdomain
   create_dns         = var.create_dns
