@@ -105,5 +105,7 @@ module "ecs" {
   sg_egress_with_cidr_blocks = var.ecs_sg_egress_with_cidr_blocks
   vpc_id                     = local.vpc_id
 
+  container_scale_up_when_cpu_pct_above = var.autoscaling_cpu_threshold_pct
+
   depends_on = [module.lb]
 }
