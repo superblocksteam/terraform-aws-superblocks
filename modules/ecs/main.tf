@@ -162,22 +162,6 @@ resource "aws_appautoscaling_target" "superblocks" {
   service_namespace  = "ecs"
 }
 
-resource "aws_appautoscaling_policy" "memory" {
-  name               = "${var.name_prefix}-scaling-policy-memory"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.superblocks.resource_id
-  scalable_dimension = aws_appautoscaling_target.superblocks.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.superblocks.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
-    }
-
-    target_value = var.container_scale_up_when_memory_pct_above
-  }
-}
-
 resource "aws_appautoscaling_policy" "cpu" {
   name               = "${var.name_prefix}-scaling-policy-cpu"
   policy_type        = "TargetTrackingScaling"
