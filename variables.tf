@@ -369,3 +369,9 @@ variable "additional_ecs_execution_task_policy_arns" {
   default     = []
   description = "List of ARNs of Additional iam policy to attach to the ECS execution role"
 }
+
+variable "autoscaling_cpu_threshold_pct" {
+  type        = number
+  default     = 90
+  description = "The CPU threshold percentage at which the autoscaling policy will scale up the number of tasks."
+}
