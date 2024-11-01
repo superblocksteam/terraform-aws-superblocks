@@ -84,12 +84,7 @@ variable "container_max_capacity" {
 
 variable "container_scale_up_when_cpu_pct_above" {
   type    = number
-  default = "50"
-}
-
-variable "container_scale_up_when_memory_pct_above" {
-  type    = number
-  default = "50"
+  default = "90"
 }
 
 variable "task_role_arn" {
