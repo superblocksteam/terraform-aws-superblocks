@@ -14,6 +14,9 @@ resource "aws_lb_target_group" "http" {
   target_type = "ip"
   vpc_id      = var.vpc_id
   tags        = var.tags
+
+  idle_timeout = var.target_group_idle_timeout
+
   health_check {
     path = "/health"
   }
@@ -33,6 +36,8 @@ resource "aws_lb_target_group" "grpc" {
   target_type = "ip"
   vpc_id      = var.vpc_id
   tags        = var.tags
+  
+  idle_timeout = var.target_group_idle_timeout
 
   lifecycle {
     create_before_destroy = true
