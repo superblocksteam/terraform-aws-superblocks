@@ -4,6 +4,7 @@ resource "aws_lb" "superblocks" {
   load_balancer_type = "application"
   subnets            = var.subnet_ids
   security_groups    = var.create_sg ? concat([module.loadbalancer_security_group[0].security_group_id], var.security_group_ids) : var.security_group_ids
+  idle_timeout       = var.target_group_idle_timeout
   tags               = var.tags
 }
 
@@ -14,8 +15,6 @@ resource "aws_lb_target_group" "http" {
   target_type = "ip"
   vpc_id      = var.vpc_id
   tags        = var.tags
-
-  idle_timeout = var.target_group_idle_timeout
 
   health_check {
     path = "/health"
@@ -29,15 +28,13 @@ resource "aws_lb_target_group" "http" {
 resource "aws_lb_target_group" "grpc" {
   count = var.ssl_enable ? 1 : 0
 
-  name_prefix = substr(var.name_prefix, 0, 6)
-  port        = var.container_port_grpc
-  protocol    = "HTTP"
+  name_prefix      = substr(var.name_prefix, 0, 6)
+  port             = var.container_port_grpc
+  protocol         = "HTTP"
   protocol_version = "GRPC"
-  target_type = "ip"
-  vpc_id      = var.vpc_id
-  tags        = var.tags
-  
-  idle_timeout = var.target_group_idle_timeout
+  target_type      = "ip"
+  vpc_id           = var.vpc_id
+  tags             = var.tags
 
   lifecycle {
     create_before_destroy = true
