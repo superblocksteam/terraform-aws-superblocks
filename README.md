@@ -100,16 +100,6 @@ lb_target_group_arns = "[<YOUR_TARGET_GROUP_ARNS>]"
 
 To find your target ground ARN use `aws elbv2 describe-target-groups` or by finding the Load Balancer in the AWS management console.
 
-#### Load Balancer Idle Timeout
-
-By default, the Application Load Balancer (ALB) used by this module has a 60-second idle timeout. To increase or decrease this timeout for longer-lived connections, set
-
-```terraform
-target_group_idle_timeout = <DESIRED_LENGTH_IN_SECONDS>
-```
-
-This value is in seconds. Setting a higher timeout can prevent premature connection termination, but may tie up load balancer resources longer.
-
 #### DNS & Certificate
 
 If you use Route53 for domain management you can use the Terraform module to generate a DNS record and  certificate for your agent, and associated both with your Load Balancer. If you don't use Route53 or want to use an existing certificate & DNS record, add the following to your configuration
