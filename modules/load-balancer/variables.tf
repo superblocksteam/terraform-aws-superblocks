@@ -116,3 +116,9 @@ variable "sg_egress_with_cidr_blocks" {
     }
   ]
 }
+
+variable "idle_timeout" {
+  type        = number
+  default     = 60
+  description = "Idle timeout (in seconds) for the ALB target group. Increase this for long-lived connections."
+}

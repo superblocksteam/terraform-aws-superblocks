@@ -4,6 +4,7 @@ resource "aws_lb" "superblocks" {
   load_balancer_type = "application"
   subnets            = var.subnet_ids
   security_groups    = var.create_sg ? concat([module.loadbalancer_security_group[0].security_group_id], var.security_group_ids) : var.security_group_ids
+  idle_timeout       = var.idle_timeout
   tags               = var.tags
 }
 

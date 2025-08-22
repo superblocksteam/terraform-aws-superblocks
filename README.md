@@ -91,14 +91,22 @@ security_group_ids = "<LIST_OF_YOUR_SECURITY_GROUP_IDS>"
 
 #### Load Balancer
 
-A new Elastic Load Balancer will be created by default to handle TLS termination before sending traffic to your ECS instances. To use an existing Loading Balancer, update the module to include
+A new Applicaton Load Balancer (ALB) will be created by default to handle TLS termination before sending traffic to your ECS instances. To use an existing load balancer, update the module to include
 
 ```terraform
 create_lb = false
 lb_target_group_arns = "[<YOUR_TARGET_GROUP_ARNS>]"
 ```
 
-To find your target ground ARN use `aws elbv2 describe-target-groups` or by finding the Load Balancer in the AWS management console.
+To find your target ground ARN use `aws elbv2 describe-target-groups` or by finding the load balancer in the AWS management console.
+
+By default, the load balancer has a 60-second idle timeout. To increase or decrease this timeout for longer-lived connections, set
+
+```terraform
+lb_idle_timeout = <DESIRED_LENGTH_IN_SECONDS>
+```
+
+Setting a higher timeout can prevent premature connection termination, but may tie up load balancer resources longer.
 
 #### DNS & Certificate
 
