@@ -20,6 +20,7 @@ module "lb" {
 
   name_prefix        = var.name_prefix
   internal           = var.lb_internal
+  idle_timeout       = var.lb_idle_timeout
   vpc_id             = local.vpc_id
   subnet_ids         = local.lb_subnet_ids
   security_group_ids = var.lb_security_group_ids
