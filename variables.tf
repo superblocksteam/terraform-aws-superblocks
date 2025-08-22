@@ -181,7 +181,7 @@ variable "lb_internal" {
 variable "lb_idle_timeout" {
   type        = number
   default     = 60
-  description = "Idle timeout (in seconds) for the ALB target group. Increase this for long-lived connections."
+  description = "Idle timeout (in seconds) for the ALB. Increase this for long-lived connections."
 }
 
 variable "create_dns" {
