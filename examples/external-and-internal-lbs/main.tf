@@ -41,7 +41,8 @@ module "terraform_aws_superblocks" {
   domain     = "clarkthekoala.com"
   subdomain  = "public-agent"
 
-  lb_target_group_arns         = [module.internal_lb.target_group_arn]
+  lb_target_group_http_arns = [module.internal_lb.target_group_http_arn]
+  lb_target_group_grpc_arns = [module.internal_lb.target_group_grpc_arn]
   allowed_load_balancer_sg_ids = [module.internal_lb.lb_security_group_id]
 
   superblocks_agent_key = "my-superblocks-agent-key"
