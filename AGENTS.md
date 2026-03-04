@@ -4,7 +4,7 @@
 
 Customer-facing Terraform module that deploys the Superblocks **On-Premise Agent (OPA)** on AWS. The agent runs on **ECS Fargate** behind an **Application Load Balancer**, with optional VPC creation, ACM certificate management, and Route53 DNS configuration. Published to the Terraform Registry as [`superblocksteam/superblocks/aws`](https://registry.terraform.io/modules/superblocksteam/superblocks/aws).
 
-This module deploys the same `orchestrator` Docker image used across all Superblocks agent deployments.
+This module deploys the Docker image maintained in the `orchestrator`/`agent` repository.
 
 ## Engineering-Wide Context
 
