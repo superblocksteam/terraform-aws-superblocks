@@ -136,6 +136,45 @@ variable "superblocks_agent_environment_variables" {
   description = "Environment variables that will be passed to the Superblocks Agent container(s). This can be specified in the form of [{name = \"key\", value = \"value\"}]."
 }
 
+variable "database_lifecycle_enabled" {
+  type        = bool
+  default     = false
+  description = "When true, provision lifecycle state infrastructure and render SUPERBLOCKS_DATABASE_LIFECYCLE_PROFILES for the OPA task."
+}
+
+variable "database_lifecycle" {
+  type = object({
+    environments   = list(string)
+    profiles       = list(string)
+    isolation      = optional(string, "instance_per_app")
+    module_source  = string
+    module_version = optional(string, "")
+    profile_id     = optional(string, "")
+    secret_prefix  = string
+  })
+  default     = null
+  description = "Minimal native database lifecycle config rendered into SUPERBLOCKS_DATABASE_LIFECYCLE_PROFILES. Required when database_lifecycle_enabled is true."
+
+  validation {
+    condition = (
+      !var.database_lifecycle_enabled ||
+      (
+        var.database_lifecycle != null &&
+        length(var.database_lifecycle.environments) > 0 &&
+        length(var.database_lifecycle.profiles) > 0 &&
+        length(var.database_lifecycle.module_source) > 0 &&
+        length(var.database_lifecycle.secret_prefix) > 0
+      )
+    )
+    error_message = "When database_lifecycle_enabled is true, database_lifecycle must include non-empty environments, profiles, module_source, and secret_prefix."
+  }
+
+  validation {
+    condition     = !var.database_lifecycle_enabled || var.superblocks_agent_role_arn != null
+    error_message = "superblocks_agent_role_arn is required when database_lifecycle_enabled is true so lifecycle IAM permissions can attach to the ECS task role."
+  }
+}
+
 #################################################################
 # VPC
 #################################################################

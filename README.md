@@ -422,6 +422,27 @@ module "terraform_aws_superblocks" {
 }
 ```
 
+#### Native database lifecycle (Fargate)
+
+Enable the in-process database lifecycle worker by setting `database_lifecycle_enabled = true` and supplying minimal `database_lifecycle` inputs. The module provisions an S3 state bucket, DynamoDB lock table, and task-role IAM policy, then injects rendered `SUPERBLOCKS_DATABASE_LIFECYCLE_PROFILES` JSON on the ECS task.
+
+`superblocks_agent_role_arn` is required when lifecycle is enabled so the lifecycle IAM policy can attach to the task role.
+
+```terraform
+database_lifecycle_enabled = true
+database_lifecycle = {
+  environments  = ["edit", "preview"]
+  profiles      = ["dev"]
+  module_source = "app.terraform.io/superblocks/postgres-managed-database/aws"
+  module_version = "1.2.3"
+  secret_prefix = "arn:aws:secretsmanager:us-west-2:123456789012:secret:rds!db-"
+}
+
+superblocks_agent_role_arn = "arn:aws:iam::123456789012:role/superblocks-agent-task"
+```
+
+Validate the rendered JSON with `tests/database_lifecycle_profiles_test.sh` (optionally set `ORCHESTRATOR_ROOT` to cross-check against the OPA parser).
+
 #### Private Docker Repository
 
 The Superblocks agent can be extended in various ways. When extending the base image, you'll need to host your own private image. If your custom image is hosted in a **private** container repository, you can set the following variables so the Terraform module has permission to download your container.

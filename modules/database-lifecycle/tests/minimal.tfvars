@@ -1,0 +1,9 @@
+name_prefix    = "testopa"
+region         = "us-west-2"
+vpc_id         = "vpc-test"
+subnet_ids     = ["subnet-a", "subnet-b"]
+environments   = ["edit", "preview"]
+profiles       = ["dev"]
+module_source  = "app.terraform.io/superblocks/postgres-managed-database/aws"
+module_version = "1.2.3"
+secret_prefix  = "arn:aws:secretsmanager:us-west-2:123456789012:secret:rds!db-"

@@ -94,7 +94,12 @@ module "ecs" {
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_DATA_DOMAIN", "value" : "${var.superblocks_agent_data_domain}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_HANDLE_CORS", "value" : "${var.superblocks_agent_handle_cors}" },
       { "name" : "SUPERBLOCKS_ORCHESTRATOR_QUOTAS_DEFAULT_API_TIMEOUT", "value" : "${var.superblocks_agent_quotas_default_api_timeout}" }
-  ], var.superblocks_agent_environment_variables)
+    ],
+    var.database_lifecycle_enabled ? [
+      { "name" : "SUPERBLOCKS_DATABASE_LIFECYCLE_PROFILES", "value" : module.database_lifecycle[0].profiles_json },
+    ] : [],
+    var.superblocks_agent_environment_variables
+  )
 
   container_cpu          = var.container_cpu
   container_memory       = var.container_memory

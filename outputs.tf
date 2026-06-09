@@ -30,3 +30,18 @@ output "agent_host_url" {
 output "ecs_execution_agent_role" {
   value = module.ecs.superblocks_agent_role
 }
+
+output "database_lifecycle_profiles_json" {
+  description = "Rendered SUPERBLOCKS_DATABASE_LIFECYCLE_PROFILES JSON when database_lifecycle_enabled is true."
+  value       = try(module.database_lifecycle[0].profiles_json, null)
+}
+
+output "database_lifecycle_state_bucket_name" {
+  description = "S3 bucket for lifecycle worker Terraform state when database_lifecycle_enabled is true."
+  value       = try(module.database_lifecycle[0].state_bucket_name, null)
+}
+
+output "database_lifecycle_task_policy_arn" {
+  description = "IAM policy ARN for lifecycle worker permissions when database_lifecycle_enabled is true."
+  value       = try(module.database_lifecycle[0].task_policy_arn, null)
+}
