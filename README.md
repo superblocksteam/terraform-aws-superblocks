@@ -431,11 +431,12 @@ Enable the in-process database lifecycle worker by setting `database_lifecycle_e
 ```terraform
 database_lifecycle_enabled = true
 database_lifecycle = {
-  environments  = ["edit", "preview"]
-  profiles      = ["dev"]
-  module_source = "app.terraform.io/superblocks/postgres-managed-database/aws"
-  module_version = "1.2.3"
-  secret_prefix = "arn:aws:secretsmanager:us-west-2:123456789012:secret:rds!db-"
+  environments                   = ["edit", "preview"]
+  profiles                       = ["dev"]
+  credential_secret_prefix       = "superblocks/native-db/prod"
+  secrets_manager_allowed_prefix = "arn:aws:secretsmanager:us-west-2:123456789012:secret:rds!db-"
+  module_source                  = "app.terraform.io/superblocks/postgres-managed-database/aws"
+  module_version                 = "1.2.3"
 }
 
 superblocks_agent_role_arn = "arn:aws:iam::123456789012:role/superblocks-agent-task"

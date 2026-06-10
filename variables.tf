@@ -144,13 +144,16 @@ variable "database_lifecycle_enabled" {
 
 variable "database_lifecycle" {
   type = object({
-    environments   = list(string)
-    profiles       = list(string)
-    isolation      = optional(string, "instance_per_app")
-    module_source  = string
-    module_version = optional(string, "")
-    profile_id     = optional(string, "")
-    secret_prefix  = string
+    environments                   = list(string)
+    profiles                       = list(string)
+    credential_secret_prefix       = string
+    secrets_manager_allowed_prefix = string
+    module_source                  = optional(string, "app.terraform.io/superblocks/postgres-managed-database/aws")
+    physical_module_source         = optional(string, "git::ssh://git@github.com/superblocksteam/terraform//modules/native-database/aws-rds-managed-instance?ref=main")
+    module_version                 = optional(string, "")
+    profile_id                     = optional(string, "")
+    physical_capacity_max          = optional(number, 8)
+    physical_security_class        = optional(string, "standard")
   })
   default     = null
   description = "Minimal native database lifecycle config rendered into SUPERBLOCKS_DATABASE_LIFECYCLE_PROFILES. Required when database_lifecycle_enabled is true."
@@ -162,11 +165,11 @@ variable "database_lifecycle" {
         var.database_lifecycle != null &&
         length(var.database_lifecycle.environments) > 0 &&
         length(var.database_lifecycle.profiles) > 0 &&
-        length(var.database_lifecycle.module_source) > 0 &&
-        length(var.database_lifecycle.secret_prefix) > 0
+        length(var.database_lifecycle.credential_secret_prefix) > 0 &&
+        length(var.database_lifecycle.secrets_manager_allowed_prefix) > 0
       )
     )
-    error_message = "When database_lifecycle_enabled is true, database_lifecycle must include non-empty environments, profiles, module_source, and secret_prefix."
+    error_message = "When database_lifecycle_enabled is true, database_lifecycle must include non-empty environments, profiles, credential_secret_prefix, and secrets_manager_allowed_prefix."
   }
 
   validation {

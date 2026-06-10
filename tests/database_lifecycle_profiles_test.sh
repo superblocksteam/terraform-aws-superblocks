@@ -32,11 +32,15 @@ fi
 echo "${profiles_json}" | jq -e '.environments | length > 0' >/dev/null
 echo "${profiles_json}" | jq -e '.profiles | length > 0' >/dev/null
 echo "${profiles_json}" | jq -e '.moduleSelectors.ensure_database.source != ""' >/dev/null
+echo "${profiles_json}" | jq -e '.moduleSelectors.ensure_database.baseInputs.credential_secret_prefix != ""' >/dev/null
+echo "${profiles_json}" | jq -e '.moduleSelectors.ensure_physical_database_instance.source != ""' >/dev/null
+echo "${profiles_json}" | jq -e '(.supportedOperations | index("migrate_schema")) != null' >/dev/null
+echo "${profiles_json}" | jq -e '(.moduleSelectors | has("migrate_schema")) | not' >/dev/null
 
 if [[ -n "${ORCHESTRATOR_ROOT}" && -d "${ORCHESTRATOR_ROOT}/pkg/databaselifecycle" ]]; then
 	wrapped="$(jq -cn --argjson profile "${profiles_json}" '[ $profile ]')"
 	(
 		cd "${ORCHESTRATOR_ROOT}"
-		TEST_PROFILES_JSON="${wrapped}" go test ./pkg/databaselifecycle/... -run TestParseEnvironmentProfilesFromEnvFixture -count=1
+		TEST_PROFILES_JSON="${wrapped}" go test ./pkg/databaselifecycle/... -run TestLifecycleConfigFromProfilesFromEnvJSON -count=1
 	)
 fi

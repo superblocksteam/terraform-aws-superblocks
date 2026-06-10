@@ -83,7 +83,7 @@ data "aws_iam_policy_document" "database_lifecycle_task" {
       "secretsmanager:DescribeSecret",
       "secretsmanager:GetSecretValue",
     ]
-    resources = ["${var.secret_prefix}*"]
+    resources = ["${var.secrets_manager_allowed_prefix}*"]
   }
 
   statement {
