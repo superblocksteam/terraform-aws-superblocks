@@ -148,6 +148,10 @@ locals {
       value = "${local.logical_module_source},${local.physical_module_source}"
     },
     {
+      name  = "SUPERBLOCKS_DATABASE_LIFECYCLE_AGENT_NAME"
+      value = var.agent_name
+    },
+    {
       name  = "SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN"
       value = var.connector_role_arn
     },

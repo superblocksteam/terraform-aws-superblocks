@@ -74,6 +74,7 @@ module "native_db_opa1" {
   source = "../../modules/native-db"
 
   # Wired directly from native-db-prereqs outputs.
+  agent_name         = "opa1"
   connector_role_arn = module.native_db_prereqs.agents["opa1"].connector_role_arn
   agent_tags         = module.native_db_prereqs.agents["opa1"].agent_tags
   state_bucket_name  = module.native_db_prereqs.state_bucket_name

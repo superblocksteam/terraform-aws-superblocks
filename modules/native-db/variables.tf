@@ -28,6 +28,16 @@ variable "key_prefix" {
   }
 }
 
+variable "agent_name" {
+  type        = string
+  description = "Stable name for this OPA deployment (the agents map key from native-db-prereqs, e.g. \"opa1\"). Used as the physical database pool identity. Must be unique within your AWS account and must not change once databases exist."
+
+  validation {
+    condition     = can(regex("^[a-z0-9_-]{1,15}$", var.agent_name))
+    error_message = "agent_name must be 1–15 lowercase alphanumeric characters, hyphens, or underscores (matching the agents map key constraint in native-db-prereqs)."
+  }
+}
+
 variable "agent_tags" {
   type        = list(string)
   description = "Agent profile tags this OPA is registered with (from the native-db-prereqs module output agents[<name>].agent_tags). Used to populate the lifecycle config profiles — must match the agent_tags the OPA advertises to Superblocks. Wildcards are not permitted."
