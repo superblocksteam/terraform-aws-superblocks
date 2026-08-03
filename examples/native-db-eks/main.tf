@@ -66,11 +66,28 @@ module "native_db_prereqs" {
   # Optional: customer-managed KMS key for the OpenTofu state bucket.
   # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
 
+  # Optional: reuse an account-level Enhanced Monitoring role created by a
+  # prior regional apply of this module. The role name is account-scoped
+  # (superblocks-native-db-monitoring), so a second region must pass the ARN
+  # from the first instead of creating another copy.
+  # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/superblocks-native-db-monitoring"
+
   # Optional: additional tags applied to all resources created by this module.
   tags = {
     Environment = "production"
   }
 }
+
+# Wire enhanced_monitoring_role_arn into the OPA Helm chart so physical
+# modules can attach Enhanced Monitoring (default monitoring_interval is 60).
+# Without this, plans fail the module precondition even though the IAM role
+# exists:
+#
+#   databaseLifecycle:
+#     physicalModuleInputs:
+#       monitoring_role_arn: <module.native_db_prereqs.enhanced_monitoring_role_arn>
+#
+# Or opt out with monitoring_interval: 0.
 
 output "agents" {
   value       = module.native_db_prereqs.agents

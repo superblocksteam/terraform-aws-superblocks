@@ -137,6 +137,14 @@ run "grants_native_database_observability_permissions" {
   }
 
   assert {
+    condition = (
+      aws_iam_role_policy_attachment.lifecycle_worker_observability["opa1"].role == local.agent_role_names["opa1"] &&
+      aws_iam_role_policy_attachment.lifecycle_worker_observability["opa1"].policy_arn == aws_iam_policy.lifecycle_worker_observability["opa1"].arn
+    )
+    error_message = "The observability policy must be attached to the lifecycle worker role, not merely declared."
+  }
+
+  assert {
     condition     = output.enhanced_monitoring_role_arn == local.monitoring_role_arn
     error_message = "The monitoring role ARN must be exported so operators can pass it as monitoring_role_arn to the physical modules."
   }

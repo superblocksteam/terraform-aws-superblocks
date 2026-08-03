@@ -56,11 +56,22 @@ module "native_db_prereqs" {
   # When omitted, the bucket uses AWS account-default encryption (SSE-S3).
   # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
 
+  # Optional: reuse an account-level Enhanced Monitoring role created by a
+  # prior regional apply of this module. The role name is account-scoped
+  # (superblocks-native-db-monitoring), so a second region must pass the ARN
+  # from the first instead of creating another copy.
+  # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/superblocks-native-db-monitoring"
+
   # Optional: additional tags applied to all resources created by this module.
   tags = {
     Environment = "production"
   }
 }
+
+# Pass enhanced_monitoring_role_arn into modules/native-db (step 2) as
+# physical_module_inputs.monitoring_role_arn. Physical modules default
+# monitoring_interval to 60 and reject plans when the role ARN is missing.
+# Opt out with monitoring_interval = 0.
 
 output "agents" {
   value       = module.native_db_prereqs.agents
