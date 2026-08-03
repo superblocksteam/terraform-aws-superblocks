@@ -68,9 +68,9 @@ module "native_db_prereqs" {
 
   # Optional: reuse an account-level Enhanced Monitoring role created by a
   # prior regional apply of this module. The role name is account-scoped
-  # (superblocks-native-db-monitoring), so a second region must pass the ARN
+  # (<name_prefix>-enhanced-monitoring), so a second region must pass the ARN
   # from the first instead of creating another copy.
-  # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/superblocks-native-db-monitoring"
+  # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
 
   # Optional: additional tags applied to all resources created by this module.
   tags = {

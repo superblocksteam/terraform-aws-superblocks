@@ -76,11 +76,11 @@ variable "kms_key_arn" {
 variable "existing_monitoring_role_arn" {
   type        = string
   default     = null
-  description = "ARN of an existing account-level RDS Enhanced Monitoring role. When null, the module creates superblocks-native-db-monitoring. Set this in additional regions so every worker reuses one shared role instead of creating a second copy. The physical database modules take this ARN as monitoring_role_arn; the worker is granted iam:PassRole on it and nothing else."
+  description = "ARN of an existing account-level RDS Enhanced Monitoring role. When null, the module creates <name_prefix>-enhanced-monitoring. Set this in additional regions so every worker reuses one shared role instead of creating a second copy. The physical database modules take this ARN as monitoring_role_arn; the worker is granted iam:PassRole on it and nothing else. Setting this on a deployment that previously created the role destroys that role: any database still configured with the old ARN loses Enhanced Monitoring until the physical modules are re-pointed at the role you supply here, so re-point them first."
 
   validation {
-    condition     = var.existing_monitoring_role_arn == null || can(regex("^arn:aws[a-z-]*:iam::[0-9]{12}:role/([A-Za-z0-9+=,.@_-]+/)*superblocks-native-db-monitoring$", var.existing_monitoring_role_arn))
-    error_message = "existing_monitoring_role_arn must be a concrete IAM role ARN named superblocks-native-db-monitoring, with an optional path and no wildcards."
+    condition     = var.existing_monitoring_role_arn == null || can(regex("^arn:aws:iam::[0-9]{12}:role/([A-Za-z0-9+=,.@_-]+/)*[A-Za-z0-9+=,.@_-]+$", var.existing_monitoring_role_arn))
+    error_message = "existing_monitoring_role_arn must be a concrete IAM role ARN in the aws partition, with an optional path and no wildcards. The rest of this module hardcodes arn:aws:, so aws-us-gov and aws-cn ARNs are not supported."
   }
 }
 

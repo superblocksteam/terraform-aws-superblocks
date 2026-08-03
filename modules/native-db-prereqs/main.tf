@@ -950,11 +950,16 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_observability" {
 # role is reused by all of them and the worker never needs iam:CreateRole.
 # The ArnLike/SourceAccount pair is confused-deputy protection — without it
 # any RDS database in any account could name this role.
+#
+# IAM role names are account-global, so this name cannot repeat within one
+# account: a second region (or a second install) must pass
+# existing_monitoring_role_arn instead of letting the module create its own,
+# or CreateRole fails with EntityAlreadyExists.
 ####################################################################
 resource "aws_iam_role" "enhanced_monitoring" {
   count = local.create_monitoring_role ? 1 : 0
 
-  name = "superblocks-native-db-monitoring"
+  name = "${var.name_prefix}-enhanced-monitoring"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
