@@ -62,10 +62,13 @@ module "native_db_prereqs" {
   }
 }
 
-# Step 2 of 2: generate the environment variables the OPA ECS container needs
-# to run the lifecycle worker. Call this once per OPA. Pass ecs_env_vars as
-# superblocks_agent_environment_variables in the terraform-aws-superblocks root
-# module that manages the ECS task definition.
+# Step 2 of 2: generate the runtime configuration the OPA ECS container needs to
+# run the lifecycle worker. Call this once per OPA. In the
+# terraform-aws-superblocks root module that manages the ECS task definition,
+# pass ecs_env_vars as superblocks_agent_environment_variables and
+# superblocks_agent_tags as superblocks_agent_tags — the worker reads the
+# profiles it serves from those tags, so taking them from this module keeps them
+# from drifting away from the databases it is configured to provision.
 #
 # Registry path (when consuming from Terraform Registry):
 #   source  = "superblocksteam/superblocks/aws//modules/native-db"
@@ -86,8 +89,24 @@ module "native_db_opa1" {
   key_prefix = "native-db/opa1"
 
   physical_module_inputs = {
-    instance_class    = "db.t4g.medium"
-    allocated_storage = 100
+    # Aurora Serverless v2 is the default: capacity scales between min_acu and
+    # max_acu with no instance class to size. Omit `deployment` entirely to
+    # accept the module defaults, or state the range you want. instance_count
+    # = 2 keeps a second warm instance for immediate failover.
+    #
+    # min_acu = 0 lets a cluster pause when idle. Use it for nonprod, not
+    # production. To run fixed instances instead of Serverless v2, replace this
+    # block with `deployment = { provisioned = { instance_class =
+    # "db.r6g.large", instance_count = 2 } }`. For a standalone RDS instance
+    # rather than an Aurora cluster, omit `deployment` and set
+    # `allocated_storage` and `instance_class` instead.
+    deployment = {
+      serverless_v2 = {
+        instance_count = 2
+        max_acu        = 32
+        min_acu        = 2
+      }
+    }
 
     vpc_id = "vpc-0123456789abcdef0"
 
@@ -101,12 +120,12 @@ module "native_db_opa1" {
     tags = module.native_db_prereqs.tags
 
     # Optional: restrict which security groups (e.g. your OPA task SG) can reach
-    # the RDS instances over port 5432.
+    # the database over port 5432.
     # source_security_group_ids = ["sg-0123456789abcdef0"]
   }
 
   # Optional: override the pool capacity. Default is 100 logical databases per
-  # physical RDS instance before a new instance is automatically provisioned.
+  # Aurora cluster before a new cluster is automatically provisioned.
   # pool = { max_databases = 50 }
 }
 
@@ -123,4 +142,9 @@ output "state_bucket_name" {
 output "opa1_ecs_env_vars" {
   value       = module.native_db_opa1.ecs_env_vars
   description = "Pass as superblocks_agent_environment_variables in the terraform-aws-superblocks root module for the opa1 ECS task definition."
+}
+
+output "opa1_superblocks_agent_tags" {
+  value       = module.native_db_opa1.superblocks_agent_tags
+  description = "Pass as superblocks_agent_tags in the terraform-aws-superblocks root module for the opa1 ECS task definition."
 }
