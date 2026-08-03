@@ -19,8 +19,10 @@ module "native_db_prereqs" {
   # IAM roles and must be unique per AWS account (max 15 characters).
   agents = {
     opa1 = {
-      # Agent tags namespace the DB users provisioned by this OPA.
-      # A tag "nonprod" creates runtime users as sbndb_nonprod_<db-id>_runtime.
+      # Agent tags namespace the DB users provisioned by this OPA. Each tag is
+      # hashed into a profile token — the first 16 hex characters of SHA-256 over
+      # the lowercased tag — so "nonprod" creates runtime users as
+      # sbndb_6fdc0c6b96ee8a74_<application-token>_runtime.
       # Must match the superblocks_agent_tags configured for this OPA.
       agent_tags = ["nonprod", "production"]
 
