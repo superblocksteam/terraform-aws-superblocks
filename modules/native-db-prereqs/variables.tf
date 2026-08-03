@@ -73,6 +73,17 @@ variable "kms_key_arn" {
   description = "ARN of the KMS key for the OpenTofu state bucket. When provided, the bucket is configured with SSE-KMS using this key and IAM KMS permissions are scoped to it. When null, the bucket uses the AWS account default encryption and IAM KMS permissions fall back to Resource:* conditioned on aws:CalledVia s3.amazonaws.com."
 }
 
+variable "existing_monitoring_role_arn" {
+  type        = string
+  default     = null
+  description = "ARN of an existing account-level RDS Enhanced Monitoring role. When null, the module creates superblocks-native-db-monitoring. Set this in additional regions so every worker reuses one shared role instead of creating a second copy. The physical database modules take this ARN as monitoring_role_arn; the worker is granted iam:PassRole on it and nothing else."
+
+  validation {
+    condition     = var.existing_monitoring_role_arn == null || can(regex("^arn:aws[a-z-]*:iam::[0-9]{12}:role/([A-Za-z0-9+=,.@_-]+/)*superblocks-native-db-monitoring$", var.existing_monitoring_role_arn))
+    error_message = "existing_monitoring_role_arn must be a concrete IAM role ARN named superblocks-native-db-monitoring, with an optional path and no wildcards."
+  }
+}
+
 variable "tags" {
   type        = map(string)
   default     = {}

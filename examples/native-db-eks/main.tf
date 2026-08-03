@@ -77,6 +77,11 @@ output "agents" {
   description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (annotate the OPA service account via eks.amazonaws.com/role-arn) and connector_role_arn (pass to OPA Helm chart as SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN)."
 }
 
+output "enhanced_monitoring_role_arn" {
+  value       = module.native_db_prereqs.enhanced_monitoring_role_arn
+  description = "Pass to OPA Helm as databaseLifecycle.physicalModuleInputs.monitoring_role_arn so Enhanced Monitoring can attach. Required unless you set monitoring_interval: 0."
+}
+
 output "state_bucket_name" {
   value       = module.native_db_prereqs.state_bucket_name
   description = "S3 bucket used by the OPA lifecycle workers to store OpenTofu state."
