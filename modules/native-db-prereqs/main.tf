@@ -661,6 +661,7 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
             "ec2:DescribeAccountAttributes",
             "ec2:DescribeAvailabilityZones",
             "ec2:DescribeNetworkInterfaces",
+            "ec2:DescribeRouteTables",
             "ec2:DescribeSecurityGroupRules",
             "ec2:DescribeSecurityGroups",
             "ec2:DescribeSubnets",
