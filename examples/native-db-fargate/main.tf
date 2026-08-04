@@ -58,6 +58,12 @@ module "native_db_prereqs" {
   # When omitted, the bucket uses AWS account-default encryption (SSE-S3).
   # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
 
+  # Optional: reuse an account-level Enhanced Monitoring role created by a
+  # prior regional apply of this module. The role name is account-scoped
+  # (<name_prefix>-enhanced-monitoring), so a second region must pass the ARN
+  # from the first instead of creating another copy.
+  # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+
   # Optional: additional tags applied to all resources created by this module.
   tags = {
     Environment = "production"
@@ -130,10 +136,9 @@ module "native_db_opa1" {
     tags = module.native_db_prereqs.tags
 
     # Enhanced Monitoring runs at 60 seconds by default, and RDS only accepts
-    # that alongside a role it can assume. Replace this with the prerequisite
-    # stack's enhanced_monitoring_role_arn output, or set monitoring_interval = 0
-    # to turn Enhanced Monitoring off.
-    monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+    # that alongside a role it can assume. Pass the prerequisite stack's role,
+    # or set monitoring_interval = 0 to turn Enhanced Monitoring off.
+    monitoring_role_arn = module.native_db_prereqs.enhanced_monitoring_role_arn
 
     # Optional: restrict which security groups (e.g. your OPA task SG) can reach
     # the database over port 5432.
@@ -148,6 +153,11 @@ module "native_db_opa1" {
 output "agents" {
   value       = module.native_db_prereqs.agents
   description = "Per-agent outputs: lifecycle_worker_role_arn (set as the ECS task role ARN), connector_role_arn, and agent_tags."
+}
+
+output "enhanced_monitoring_role_arn" {
+  value       = module.native_db_prereqs.enhanced_monitoring_role_arn
+  description = "Pass into modules/native-db (or physicalModuleInputs.monitoring_role_arn) so Enhanced Monitoring can attach. Required unless you set monitoring_interval = 0."
 }
 
 output "state_bucket_name" {

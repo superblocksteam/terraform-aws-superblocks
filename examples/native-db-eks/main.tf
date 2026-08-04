@@ -68,15 +68,37 @@ module "native_db_prereqs" {
   # Optional: customer-managed KMS key for the OpenTofu state bucket.
   # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
 
+  # Optional: reuse an account-level Enhanced Monitoring role created by a
+  # prior regional apply of this module. The role name is account-scoped
+  # (<name_prefix>-enhanced-monitoring), so a second region must pass the ARN
+  # from the first instead of creating another copy.
+  # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+
   # Optional: additional tags applied to all resources created by this module.
   tags = {
     Environment = "production"
   }
 }
 
+# Wire enhanced_monitoring_role_arn into the OPA Helm chart so physical
+# modules can attach Enhanced Monitoring (default monitoring_interval is 60).
+# Without this, plans fail the module precondition even though the IAM role
+# exists:
+#
+#   databaseLifecycle:
+#     physicalModuleInputs:
+#       monitoring_role_arn: <module.native_db_prereqs.enhanced_monitoring_role_arn>
+#
+# Or opt out with monitoring_interval: 0.
+
 output "agents" {
   value       = module.native_db_prereqs.agents
   description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (annotate the OPA service account via eks.amazonaws.com/role-arn) and connector_role_arn (pass to OPA Helm chart as SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN)."
+}
+
+output "enhanced_monitoring_role_arn" {
+  value       = module.native_db_prereqs.enhanced_monitoring_role_arn
+  description = "Pass to OPA Helm as databaseLifecycle.physicalModuleInputs.monitoring_role_arn so Enhanced Monitoring can attach. Required unless you set monitoring_interval: 0."
 }
 
 output "state_bucket_name" {
