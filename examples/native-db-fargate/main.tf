@@ -160,9 +160,11 @@ module "native_db_opa1" {
     # or set monitoring_interval = 0 to turn Enhanced Monitoring off.
     monitoring_role_arn = module.native_db_prereqs.enhanced_monitoring_role_arn
 
-    # Optional: restrict which security groups (e.g. your OPA task SG) can reach
-    # the database over port 5432.
-    # source_security_group_ids = ["sg-0123456789abcdef0"]
+    # The OPA ECS task SG — allows it to reach the provisioned database on port
+    # 5432. Must be pre-created and passed here (rather than referencing the root
+    # module's auto-created ECS SG) because native-db feeds into the root module,
+    # making a back-reference a dependency cycle.
+    source_security_group_ids = ["sg-your-opa-task-sg"]
   }
 
   # Optional: override the pool capacity. Default is 100 logical databases per
