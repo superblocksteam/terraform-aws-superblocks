@@ -29,7 +29,7 @@ mock_provider "aws" {
   }
 }
 
-run "grants_the_reads_the_physical_modules_perform" {
+run "ec2_vpc_describe_grants_required_reads" {
   command = plan
 
   variables {
@@ -44,14 +44,26 @@ run "grants_the_reads_the_physical_modules_perform" {
     }
   }
 
-  # The physical modules declare data.aws_vpc, and reading it resolves the VPC's
-  # main route table. Without this grant the read still succeeds, so provisioning
-  # works, but every plan and apply logs an AccessDenied in the customer account.
+  # Pins the full Ec2VpcDescribe allowlist. DescribeRouteTables is easy to drop
+  # in a "remove unused IAM" cleanup — nothing in this module calls it — but
+  # reading data.aws_vpc in the physical modules resolves the VPC's main route
+  # table, and without the grant every plan/apply logs AccessDenied.
   assert {
-    condition = contains(one([
+    condition = toset(one([
       for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning["opa1"].policy).Statement :
       statement.Action if statement.Sid == "Ec2VpcDescribe"
-    ]), "ec2:DescribeRouteTables")
-    error_message = "Reading data.aws_vpc calls ec2:DescribeRouteTables, so the worker must be granted it."
+    ])) == toset([
+      "ec2:DescribeAccountAttributes",
+      "ec2:DescribeAvailabilityZones",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DescribeRouteTables",
+      "ec2:DescribeSecurityGroupRules",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeSubnets",
+      "ec2:DescribeTags",
+      "ec2:DescribeVpcAttribute",
+      "ec2:DescribeVpcs",
+    ])
+    error_message = "Ec2VpcDescribe must grant every EC2 describe the physical modules (and data.aws_vpc) perform."
   }
 }
