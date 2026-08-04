@@ -28,7 +28,7 @@ variable "agents" {
     existing_role_name     = optional(string)
     rds_secret_kms_key_arn = optional(string)
   }))
-  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket per module invocation."
+  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket per module invocation, with object access scoped to native-db/<agent>/."
 
   validation {
     condition     = length(var.agents) > 0
@@ -70,7 +70,7 @@ variable "name_prefix" {
 variable "kms_key_arn" {
   type        = string
   default     = null
-  description = "ARN of the KMS key for the OpenTofu state bucket. When provided, the bucket is configured with SSE-KMS using this key and IAM KMS permissions are scoped to it. When null, the bucket uses the AWS account default encryption and IAM KMS permissions fall back to Resource:* conditioned on aws:CalledVia s3.amazonaws.com."
+  description = "ARN of the KMS key for the OpenTofu state bucket. When provided, the bucket is configured with SSE-KMS using this key and lifecycle-worker IAM is granted KMS access only on this key. When null, the bucket uses AWS account-default encryption (SSE-S3) and no state-bucket KMS IAM statement is attached."
 }
 
 variable "existing_monitoring_role_arn" {

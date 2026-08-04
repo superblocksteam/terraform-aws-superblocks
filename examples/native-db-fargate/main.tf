@@ -55,7 +55,8 @@ module "native_db_prereqs" {
   # name_prefix = "acme-native-db"
 
   # Optional: customer-managed KMS key for the OpenTofu state bucket.
-  # When omitted, the bucket uses AWS account-default encryption (SSE-S3).
+  # When omitted, the bucket uses AWS account-default encryption (SSE-S3) and
+  # lifecycle-worker IAM does not grant any KMS actions for state.
   # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
 
   # Optional: reuse an account-level Enhanced Monitoring role created by a
@@ -93,8 +94,8 @@ module "native_db_opa1" {
   region = "us-east-1"
 
   # Namespaces this OPA's OpenTofu state within the shared S3 bucket.
-  # Must be unique per OPA. Using the agent name as a suffix is recommended.
-  key_prefix = "native-db/opa1"
+  # Must match the IAM prefix granted by native-db-prereqs (native-db/<agent>).
+  key_prefix = module.native_db_prereqs.agents["opa1"].key_prefix
 
   physical_module_inputs = {
     # Aurora Serverless v2 is the default: capacity scales between min_acu and

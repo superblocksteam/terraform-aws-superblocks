@@ -20,7 +20,7 @@ variable "region" {
 
 variable "key_prefix" {
   type        = string
-  description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Must be unique per OPA — using the agent name as a suffix is recommended (e.g. \"native-db/prod\"). Logical database state lands under <key_prefix>/logical/{{profile}}/... and physical instance state under <key_prefix>/physical/{{profile}}/..."
+  description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Must equal native-db-prereqs agents[<agent_name>].key_prefix (native-db/<agent_name>) — that module's IAM only grants the lifecycle worker access under that prefix. Logical database state lands under <key_prefix>/logical/{{profile}}/... and physical instance state under <key_prefix>/physical/{{profile}}/..."
 
   validation {
     condition     = length(var.key_prefix) > 0 && !startswith(var.key_prefix, "/") && !endswith(var.key_prefix, "/")

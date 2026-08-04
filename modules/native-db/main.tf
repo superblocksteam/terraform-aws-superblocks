@@ -1,5 +1,15 @@
 data "aws_caller_identity" "current" {}
 
+# native-db-prereqs grants each lifecycle worker object access only under
+# native-db/<agent_name>/. A mismatched key_prefix plans cleanly but every
+# state read/write fails AccessDenied at runtime — catch it here.
+check "key_prefix_matches_prereqs_iam_grant" {
+  assert {
+    condition     = var.key_prefix == "native-db/${var.agent_name}"
+    error_message = "key_prefix must be \"native-db/<agent_name>\" to match the IAM prefix granted by native-db-prereqs (pass agents[<agent_name>].key_prefix)."
+  }
+}
+
 locals {
   # Module sources relative to the dispatch working directory. The OPA image
   # vendors these modules at fixed paths; this module pins those paths and does
