@@ -86,6 +86,8 @@ variable "physical_module_inputs" {
       }))
     }))
     instance_class            = optional(string)
+    monitoring_interval       = optional(number, 60)
+    monitoring_role_arn       = optional(string)
     multi_az                  = optional(bool)
     skip_final_snapshot       = optional(bool, false)
     source_security_group_ids = optional(list(string), [])
@@ -101,7 +103,17 @@ variable "physical_module_inputs" {
     Standalone RDS is opt-in: set `allocated_storage` and `instance_class` (and optionally `multi_az`) instead of `deployment`. Aurora manages storage and failover itself and accepts none of those three.
 
     publicly_accessible is always false and is not configurable — the lifecycle worker IAM policy enforces it regardless.
+
+    Enhanced Monitoring is on at a 60 second interval, which RDS only accepts alongside an IAM role it can assume. Pass the prerequisite stack's `enhanced_monitoring_role_arn` output as `monitoring_role_arn`, or set `monitoring_interval = 0` to turn Enhanced Monitoring off.
   EOT
+
+  validation {
+    condition = (
+      var.physical_module_inputs.monitoring_interval == 0 ||
+      var.physical_module_inputs.monitoring_role_arn != null
+    )
+    error_message = "physical_module_inputs.monitoring_role_arn is required unless monitoring_interval is 0. Pass the prerequisite stack's enhanced_monitoring_role_arn output, or set monitoring_interval = 0 to disable Enhanced Monitoring."
+  }
 
   validation {
     condition = (

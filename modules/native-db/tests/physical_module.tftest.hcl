@@ -20,8 +20,9 @@ variables {
   state_bucket_name  = "sb-native-db-us-east-1-123456789012"
 
   physical_module_inputs = {
-    subnet_ids = ["subnet-0000000000000001", "subnet-0000000000000002"]
-    vpc_id     = "vpc-0123456789abcdef0"
+    monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+    subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+    vpc_id              = "vpc-0123456789abcdef0"
   }
 }
 
@@ -72,8 +73,9 @@ run "a_caller_can_ask_aurora_for_provisioned_instances" {
           instance_count = 3
         }
       }
-      subnet_ids = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id     = "vpc-0123456789abcdef0"
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
     }
   }
 
@@ -99,10 +101,11 @@ run "a_caller_can_ask_for_standalone_rds_by_sizing_an_instance" {
 
   variables {
     physical_module_inputs = {
-      allocated_storage = 100
-      instance_class    = "db.t4g.medium"
-      subnet_ids        = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id            = "vpc-0123456789abcdef0"
+      allocated_storage   = 100
+      instance_class      = "db.t4g.medium"
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
     }
   }
 
@@ -144,9 +147,10 @@ run "an_rds_instance_needs_both_sizing_inputs" {
 
   variables {
     physical_module_inputs = {
-      instance_class = "db.t4g.medium"
-      subnet_ids     = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id         = "vpc-0123456789abcdef0"
+      instance_class      = "db.t4g.medium"
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
     }
   }
 
@@ -158,11 +162,12 @@ run "aurora_capacity_and_rds_sizing_cannot_be_combined" {
 
   variables {
     physical_module_inputs = {
-      allocated_storage = 100
-      deployment        = { serverless_v2 = { max_acu = 8 } }
-      instance_class    = "db.t4g.medium"
-      subnet_ids        = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id            = "vpc-0123456789abcdef0"
+      allocated_storage   = 100
+      deployment          = { serverless_v2 = { max_acu = 8 } }
+      instance_class      = "db.t4g.medium"
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
     }
   }
 
@@ -178,8 +183,9 @@ run "an_aurora_deployment_names_exactly_one_capacity_shape" {
         provisioned   = { instance_class = "db.r6g.large" }
         serverless_v2 = { max_acu = 8 }
       }
-      subnet_ids = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id     = "vpc-0123456789abcdef0"
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
     }
   }
 
@@ -191,7 +197,44 @@ run "an_empty_aurora_deployment_is_rejected_rather_than_silently_defaulted" {
 
   variables {
     physical_module_inputs = {
-      deployment = {}
+      deployment          = {}
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
+    }
+  }
+
+  expect_failures = [var.physical_module_inputs]
+}
+
+# Both physical modules default monitoring_interval to 60 and reject that
+# without a role, so the rendered inputs have to carry the pair or no database
+# ever provisions.
+run "enhanced_monitoring_reaches_both_physical_modules" {
+  command = plan
+
+  assert {
+    condition = jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs.monitoring_role_arn == "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+    error_message = "The Aurora inputs must carry the Enhanced Monitoring role the caller supplied."
+  }
+
+  assert {
+    condition = jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs.monitoring_interval == 60
+    error_message = "Enhanced Monitoring must stay on by default rather than relying on the physical module's own default."
+  }
+}
+
+run "enhanced_monitoring_without_a_role_is_rejected_here_not_inside_the_worker" {
+  command = plan
+
+  variables {
+    physical_module_inputs = {
       subnet_ids = ["subnet-0000000000000001", "subnet-0000000000000002"]
       vpc_id     = "vpc-0123456789abcdef0"
     }

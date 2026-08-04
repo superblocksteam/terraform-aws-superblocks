@@ -121,6 +121,12 @@ module "native_db_opa1" {
     # Propagate the same tags applied to IAM and S3 resources above.
     tags = module.native_db_prereqs.tags
 
+    # Enhanced Monitoring runs at 60 seconds by default, and RDS only accepts
+    # that alongside a role it can assume. Replace this with the prerequisite
+    # stack's enhanced_monitoring_role_arn output, or set monitoring_interval = 0
+    # to turn Enhanced Monitoring off.
+    monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+
     # Optional: restrict which security groups (e.g. your OPA task SG) can reach
     # the database over port 5432.
     # source_security_group_ids = ["sg-0123456789abcdef0"]

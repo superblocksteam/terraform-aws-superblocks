@@ -48,6 +48,8 @@ locals {
     backup_retention_period   = var.physical_module_inputs.backup_retention_period
     delete_automated_backups  = var.physical_module_inputs.delete_automated_backups
     deletion_protection       = var.physical_module_inputs.deletion_protection
+    monitoring_interval       = var.physical_module_inputs.monitoring_interval
+    monitoring_role_arn       = var.physical_module_inputs.monitoring_role_arn
     publicly_accessible       = false
     skip_final_snapshot       = var.physical_module_inputs.skip_final_snapshot
     source_security_group_ids = var.physical_module_inputs.source_security_group_ids
