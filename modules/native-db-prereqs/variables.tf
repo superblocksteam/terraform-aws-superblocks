@@ -36,8 +36,8 @@ variable "agents" {
   }
 
   validation {
-    condition     = alltrue([for k in keys(var.agents) : can(regex("^[a-z0-9-]{1,15}$", k))])
-    error_message = "Agent names (map keys) must be 1-15 lowercase alphanumeric characters or hyphens."
+    condition     = alltrue([for k in keys(var.agents) : can(regex("^[a-z0-9]{1,15}$", k))])
+    error_message = "Agent names (map keys) must be 1-15 lowercase alphanumeric characters."
   }
 
   validation {

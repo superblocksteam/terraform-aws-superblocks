@@ -19,8 +19,10 @@ module "native_db_prereqs" {
   # IAM roles and must be unique per AWS account (max 15 characters).
   agents = {
     opa1 = {
-      # Agent tags namespace the DB users provisioned by this OPA.
-      # A tag "nonprod" creates runtime users as sbndb_nonprod_<db-id>_runtime.
+      # Agent tags namespace the DB users provisioned by this OPA. Each tag is
+      # hashed into a profile token — the first 16 hex characters of SHA-256 over
+      # the lowercased tag — so "nonprod" creates runtime users as
+      # sbndb_6fdc0c6b96ee8a74_<application-token>_runtime.
       # Must match the superblocks_agent_tags configured for this OPA.
       agent_tags = ["nonprod", "production"]
 
@@ -68,14 +70,89 @@ module "native_db_prereqs" {
   }
 }
 
-# Pass enhanced_monitoring_role_arn into modules/native-db (step 2) as
-# physical_module_inputs.monitoring_role_arn. Physical modules default
-# monitoring_interval to 60 and reject plans when the role ARN is missing.
-# Opt out with monitoring_interval = 0.
+# Step 2 of 2: generate the runtime configuration the OPA ECS container needs to
+# run the lifecycle worker. Call this once per OPA. In the
+# terraform-aws-superblocks root module that manages the ECS task definition,
+# pass ecs_env_vars as superblocks_agent_environment_variables and
+# superblocks_agent_tags as superblocks_agent_tags — the worker reads the
+# profiles it serves from those tags, so taking them from this module keeps them
+# from drifting away from the databases it is configured to provision.
+#
+# Registry path (when consuming from Terraform Registry):
+#   source  = "superblocksteam/superblocks/aws//modules/native-db"
+#   version = "~>1.0"
+module "native_db_opa1" {
+  source = "../../modules/native-db"
+
+  # Wired directly from native-db-prereqs outputs.
+  agent_name         = "opa1"
+  connector_role_arn = module.native_db_prereqs.agents["opa1"].connector_role_arn
+  agent_tags         = module.native_db_prereqs.agents["opa1"].agent_tags
+  state_bucket_name  = module.native_db_prereqs.state_bucket_name
+
+  region = "us-east-1"
+
+  # Namespaces this OPA's OpenTofu state within the shared S3 bucket.
+  # Must be unique per OPA. Using the agent name as a suffix is recommended.
+  key_prefix = "native-db/opa1"
+
+  physical_module_inputs = {
+    # Aurora Serverless v2 is the default: capacity scales between min_acu and
+    # max_acu with no instance class to size. Omit `deployment` entirely to
+    # accept the module defaults, or state the range you want. instance_count
+    # = 2 keeps a second warm instance for immediate failover.
+    #
+    # min_acu = 0 lets a cluster pause when idle. Use it for nonprod, not
+    # production.
+    deployment = {
+      serverless_v2 = {
+        instance_count = 2
+        max_acu        = 32
+        min_acu        = 2
+      }
+    }
+
+    # Aurora with fixed instances instead of Serverless v2:
+    # deployment = {
+    #   provisioned = {
+    #     instance_class = "db.r6g.large"
+    #     instance_count = 2
+    #   }
+    # }
+
+    # Standalone RDS instead of an Aurora cluster (omit deployment above):
+    # allocated_storage = 100
+    # instance_class    = "db.t4g.medium"
+
+    vpc_id = "vpc-0123456789abcdef0"
+
+    # Subnets in at least two Availability Zones — required by the DB subnet group.
+    subnet_ids = [
+      "subnet-0000000000000001",
+      "subnet-0000000000000002",
+    ]
+
+    # Propagate the same tags applied to IAM and S3 resources above.
+    tags = module.native_db_prereqs.tags
+
+    # Enhanced Monitoring runs at 60 seconds by default, and RDS only accepts
+    # that alongside a role it can assume. Pass the prerequisite stack's role,
+    # or set monitoring_interval = 0 to turn Enhanced Monitoring off.
+    monitoring_role_arn = module.native_db_prereqs.enhanced_monitoring_role_arn
+
+    # Optional: restrict which security groups (e.g. your OPA task SG) can reach
+    # the database over port 5432.
+    # source_security_group_ids = ["sg-0123456789abcdef0"]
+  }
+
+  # Optional: override the pool capacity. Default is 100 logical databases per
+  # Aurora cluster before a new cluster is automatically provisioned.
+  # pool = { max_databases = 50 }
+}
 
 output "agents" {
   value       = module.native_db_prereqs.agents
-  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (set as ECS task role ARN) and connector_role_arn (pass to the OPA runtime config as SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN)."
+  description = "Per-agent outputs: lifecycle_worker_role_arn (set as the ECS task role ARN), connector_role_arn, and agent_tags."
 }
 
 output "enhanced_monitoring_role_arn" {
@@ -86,4 +163,14 @@ output "enhanced_monitoring_role_arn" {
 output "state_bucket_name" {
   value       = module.native_db_prereqs.state_bucket_name
   description = "S3 bucket used by the OPA lifecycle workers to store OpenTofu state."
+}
+
+output "opa1_ecs_env_vars" {
+  value       = module.native_db_opa1.ecs_env_vars
+  description = "Pass as superblocks_agent_environment_variables in the terraform-aws-superblocks root module for the opa1 ECS task definition."
+}
+
+output "opa1_superblocks_agent_tags" {
+  value       = module.native_db_opa1.superblocks_agent_tags
+  description = "Pass as superblocks_agent_tags in the terraform-aws-superblocks root module for the opa1 ECS task definition."
 }

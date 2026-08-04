@@ -27,6 +27,21 @@ locals {
   }
 
   # ----------------------------------------------------------------
+  # Profile tokens.
+  #
+  # Every database and runtime user the lifecycle worker creates is named
+  # sbndb_<profile_token>_<application_token>[_runtime], where profile_token is
+  # the first 16 hex characters of SHA-256 over the lowercased data tag. IAM
+  # grants must be written against that token, not the tag itself.
+  #
+  #   printf '%s' nonprod | shasum -a 256 | cut -c1-16  =>  6fdc0c6b96ee8a74
+  # ----------------------------------------------------------------
+  profile_tokens = {
+    for tag in distinct(flatten([for agent in values(var.agents) : agent.agent_tags])) :
+    tag => substr(sha256(lower(tag)), 0, 16)
+  }
+
+  # ----------------------------------------------------------------
   # Tagging
   # ----------------------------------------------------------------
   managed_by_tag = "superblocks-native-database-lifecycle"
@@ -1008,8 +1023,11 @@ resource "aws_iam_role_policy_attachment" "enhanced_monitoring" {
 # Assumed at query time by the OPA serving code to generate an RDS IAM
 # authentication token. Trusts only that agent's lifecycle worker role(s).
 #
-# Policy contains one rds-db:connect statement per profile, scoping
-# access to DB users in the sbndb_{profile}_*_runtime namespace.
+# Policy contains one rds-db:connect statement per data tag, scoping access to
+# DB users in the sbndb_{profile_token}_*_runtime namespace. The lifecycle
+# worker derives that token from the tag rather than using the tag itself, so a
+# grant written against the bare tag matches no DB user and every query fails
+# with AccessDenied.
 #
 # Role name format: superblocks-native-db-connector-{agent_name}
 # "superblocks-native-db-connector" is a reserved prefix: the Superblocks
@@ -1048,8 +1066,8 @@ resource "aws_iam_policy" "connector" {
         Effect = "Allow"
         Action = "rds-db:connect"
         Resource = [
-          "arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:cluster-*/sbndb_${tag}_*_runtime",
-          "arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:db-*/sbndb_${tag}_*_runtime",
+          "arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:cluster-*/sbndb_${local.profile_tokens[tag]}_*_runtime",
+          "arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:db-*/sbndb_${local.profile_tokens[tag]}_*_runtime",
         ]
       }
     ]
