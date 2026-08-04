@@ -309,3 +309,36 @@ run "agent_name_rejects_underscores" {
 
   expect_failures = [var.agent_name]
 }
+
+run "multi_az_alone_cannot_select_rds" {
+  command = plan
+
+  variables {
+    physical_module_inputs = {
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      multi_az            = true
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
+    }
+  }
+
+  expect_failures = [var.physical_module_inputs]
+}
+
+run "deployment_and_multi_az_cannot_be_combined" {
+  command = plan
+
+  variables {
+    physical_module_inputs = {
+      deployment = {
+        serverless_v2 = {}
+      }
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      multi_az            = true
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
+    }
+  }
+
+  expect_failures = [var.physical_module_inputs]
+}

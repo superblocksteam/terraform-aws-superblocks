@@ -144,3 +144,57 @@ run "backend_keys_partition_by_profile_not_environment" {
     error_message = "Physical state must live under <key_prefix>/physical/{{profile}}/{{resource_key}}.tfstate with no environment segment."
   }
 }
+
+# The worker's TerraformOperationBackend no longer declares credentialResolver;
+# an emitted field is silently dropped and drifts from the Helm renderer.
+run "terraform_operations_omit_obsolete_credential_resolver" {
+  command = plan
+
+  assert {
+    condition = !contains(keys(jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_database.terraform), "credentialResolver")
+    error_message = "ensure_database must not emit credentialResolver; the worker no longer declares the field."
+  }
+
+  assert {
+    condition = !contains(keys(jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_physical_database_instance.terraform), "credentialResolver")
+    error_message = "ensure_physical_database_instance must not emit credentialResolver; the worker no longer declares the field."
+  }
+}
+
+run "pool_max_databases_rejects_fractions" {
+  command = plan
+
+  variables {
+    pool = {
+      max_databases = 1.5
+    }
+  }
+
+  expect_failures = [var.pool]
+}
+
+run "agent_tags_reject_commas" {
+  command = plan
+
+  variables {
+    agent_tags = ["non,prod"]
+  }
+
+  expect_failures = [var.agent_tags]
+}
+
+run "agent_tags_reject_mixed_case" {
+  command = plan
+
+  variables {
+    agent_tags = ["NonProd"]
+  }
+
+  expect_failures = [var.agent_tags]
+}

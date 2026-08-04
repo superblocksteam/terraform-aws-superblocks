@@ -48,8 +48,11 @@ variable "agent_tags" {
   }
 
   validation {
-    condition     = !contains(var.agent_tags, "*")
-    error_message = "Wildcard '*' is not permitted in agent_tags. Use explicit profile keys."
+    condition = (
+      alltrue([for t in var.agent_tags : can(regex("^[a-z0-9-]{1,15}$", t))]) &&
+      length(var.agent_tags) == length(toset(var.agent_tags))
+    )
+    error_message = "Each agent_tag must be a unique 1-15 lowercase alphanumeric or hyphen string (matching the agents[].agent_tags constraint in native-db-prereqs). Commas and mixed case break the comma-delimited registration string."
   }
 }
 
@@ -61,7 +64,7 @@ variable "pool" {
   description = "Shared physical pool configuration. max_databases sets the maximum number of logical databases a single RDS instance can hold before a new instance is automatically provisioned. Defaults to 100."
 
   validation {
-    condition     = var.pool.max_databases > 0
+    condition     = var.pool.max_databases > 0 && floor(var.pool.max_databases) == var.pool.max_databases
     error_message = "pool.max_databases must be a positive integer."
   }
 }
@@ -121,6 +124,17 @@ variable "physical_module_inputs" {
       (var.physical_module_inputs.instance_class == null)
     )
     error_message = "physical_module_inputs.allocated_storage and instance_class select standalone RDS and must be set together. Omit both to provision Aurora."
+  }
+
+  validation {
+    condition = (
+      var.physical_module_inputs.multi_az == null ||
+      (
+        var.physical_module_inputs.allocated_storage != null &&
+        var.physical_module_inputs.instance_class != null
+      )
+    )
+    error_message = "physical_module_inputs.multi_az is an RDS-only option and must be set together with allocated_storage and instance_class. Omit multi_az to provision Aurora."
   }
 
   validation {

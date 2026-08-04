@@ -113,7 +113,6 @@ locals {
     backend = merge(local.s3_backend_base, {
       key = "${var.key_prefix}/logical/{{profile}}/{{resource_key}}.tfstate"
     })
-    credentialResolver = { runtime = "aws_secrets_manager", region = var.region }
     moduleSelectors = {
       postgres = {
         source = local.logical_module_source
@@ -141,7 +140,6 @@ locals {
         backend = merge(local.s3_backend_base, {
           key = "${var.key_prefix}/physical/{{profile}}/{{resource_key}}.tfstate"
         })
-        credentialResolver = { runtime = "aws_secrets_manager", region = var.region }
         moduleSelectors = {
           postgres = {
             source = local.physical_module_source
