@@ -88,6 +88,20 @@ run "the_worker_owns_its_own_resource_type_allowlist" {
   }
 }
 
+# Match helm/agent databaseLifecycle.pollInterval and the worker's ConfigFromEnv
+# default so Fargate and EKS poll at the same cadence.
+run "poll_interval_matches_helm_and_worker_default" {
+  command = plan
+
+  assert {
+    condition = [
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_POLL_INTERVAL"
+    ][0] == "30s"
+    error_message = "Poll interval must be 30s to match helm/agent databaseLifecycle.pollInterval and the worker default."
+  }
+}
+
 run "the_logical_module_gets_only_the_inputs_it_still_declares" {
   command = plan
 

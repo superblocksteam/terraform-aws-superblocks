@@ -194,7 +194,7 @@ locals {
     },
     {
       name  = "SUPERBLOCKS_DATABASE_LIFECYCLE_POLL_INTERVAL"
-      value = "5s"
+      value = "30s"
     },
     # SUPERBLOCKS_DATABASE_LIFECYCLE_ALLOWED_RESOURCE_TYPES is deliberately
     # unset. The worker's own default mirrors the resource graph of the modules
