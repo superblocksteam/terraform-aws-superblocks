@@ -7,11 +7,16 @@ provider "aws" {
 #
 # Add steps 1 and 2 below to your existing Terraform configuration (the
 # same root that manages your OPA ECS task), then update your existing
-# terraform-aws-superblocks module block with three new arguments:
+# terraform-aws-superblocks module block with four new arguments:
 #
+#   superblocks_agent_image                 = "ghcr.io/superblocksteam/agent:v1.46.0"
 #   superblocks_agent_tags                  = module.native_db_opa1.superblocks_agent_tags
 #   superblocks_agent_role_arn              = module.native_db_prereqs.agents["opa1"].lifecycle_worker_role_arn
 #   superblocks_agent_environment_variables = module.native_db_opa1.ecs_env_vars
+#
+# IMPORTANT: pin superblocks_agent_image to v1.46.0 or later. modules/native-db
+# emits the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG shape that older images
+# reject at startup with "database lifecycle config entries are required".
 #
 # IMPORTANT: set existing_role_name (in the agents block below) to your
 # current ECS task role name so native-db-prereqs attaches its policies to
@@ -189,6 +194,10 @@ module "superblocks_opa1" {
   vpc_id                = "vpc-0123456789abcdef0"
   ecs_subnet_ids        = ["subnet-0000000000000001", "subnet-0000000000000002"]
   lb_subnet_ids         = ["subnet-0000000000000001", "subnet-0000000000000002"]
+
+  # Native DB requires OPA v1.46.0+. The untagged default image may be older and
+  # will exit on the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG this module emits.
+  superblocks_agent_image = "ghcr.io/superblocksteam/agent:v1.46.0"
 
   # Native DB additions — wire these in from the modules above.
   superblocks_agent_tags                  = module.native_db_opa1.superblocks_agent_tags
