@@ -84,3 +84,24 @@ run "the_connect_grant_names_hashed_profile_tokens" {
     error_message = "Statement Sids must name the data tag they came from."
   }
 }
+
+run "the_tags_output_matches_what_the_module_stamps" {
+  command = plan
+
+  variables {
+    tags = { Environment = "production" }
+  }
+
+  # The example forwards this output into physical_module_inputs.tags, so it has
+  # to be the merged set the module puts on its own resources, not the caller's
+  # raw input.
+  assert {
+    condition     = tomap(output.tags) == aws_iam_role.lifecycle_worker["prod"].tags
+    error_message = "The tags output must equal the tags the module applies to the resources it creates."
+  }
+
+  assert {
+    condition     = output.tags == { Environment = "production", ManagedBy = "superblocks-native-database-lifecycle" }
+    error_message = "The tags output must merge ManagedBy over the caller's tags."
+  }
+}

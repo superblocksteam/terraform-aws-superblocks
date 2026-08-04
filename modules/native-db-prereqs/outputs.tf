@@ -15,6 +15,6 @@ output "state_bucket_name" {
 }
 
 output "tags" {
-  value       = var.tags
+  value       = local.tags
   description = "Tags applied to all resources created by this module. Pass to the native-db module's physical_module_inputs.tags to tag RDS instances with the same values."
 }
