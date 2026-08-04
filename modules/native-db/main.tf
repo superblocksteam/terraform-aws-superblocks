@@ -1,9 +1,10 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  # Module sources relative to the dispatch working directory. The Superblocks
-  # OPA image vendors these modules at a fixed path — customers do not configure
-  # them.
+  # Module sources relative to the dispatch working directory. The OPA image
+  # vendors these modules at fixed paths; this module pins those paths and does
+  # not expose them as inputs. Operators who need a different source write their
+  # own SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG instead of using this module.
   logical_module_source = "./modules/postgres-managed-database"
 
   # Aurora is the default physical engine, so a caller who states only where the
@@ -110,7 +111,7 @@ locals {
   # logical backend key and module).
   logical_terraform = {
     backend = merge(local.s3_backend_base, {
-      key = "${var.key_prefix}/logical/{{environment}}/{{profile}}/{{resource_key}}.tfstate"
+      key = "${var.key_prefix}/logical/{{profile}}/{{resource_key}}.tfstate"
     })
     credentialResolver = { runtime = "aws_secrets_manager", region = var.region }
     moduleSelectors = {
@@ -138,7 +139,7 @@ locals {
       backend = "terraform"
       terraform = {
         backend = merge(local.s3_backend_base, {
-          key = "${var.key_prefix}/physical/{{environment}}/{{profile}}/{{resource_key}}.tfstate"
+          key = "${var.key_prefix}/physical/{{profile}}/{{resource_key}}.tfstate"
         })
         credentialResolver = { runtime = "aws_secrets_manager", region = var.region }
         moduleSelectors = {

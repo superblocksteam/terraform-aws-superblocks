@@ -242,3 +242,70 @@ run "enhanced_monitoring_without_a_role_is_rejected_here_not_inside_the_worker" 
 
   expect_failures = [var.physical_module_inputs]
 }
+
+run "allocated_storage_must_be_positive" {
+  command = plan
+
+  variables {
+    physical_module_inputs = {
+      allocated_storage   = 0
+      instance_class      = "db.t4g.medium"
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
+    }
+  }
+
+  expect_failures = [var.physical_module_inputs]
+}
+
+run "subnet_ids_need_at_least_two_availability_zones" {
+  command = plan
+
+  variables {
+    physical_module_inputs = {
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001"]
+      vpc_id              = "vpc-0123456789abcdef0"
+    }
+  }
+
+  expect_failures = [var.physical_module_inputs]
+}
+
+run "vpc_id_must_look_like_a_vpc_id" {
+  command = plan
+
+  variables {
+    physical_module_inputs = {
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "not-a-vpc-id"
+    }
+  }
+
+  expect_failures = [var.physical_module_inputs]
+}
+
+# Agent names land in IAM role names and the worker's pool identity. Restrict
+# to lowercase alphanumeric so later resources that reject hyphens/underscores
+# do not force a rename after databases exist.
+run "agent_name_rejects_hyphens" {
+  command = plan
+
+  variables {
+    agent_name = "opa-1"
+  }
+
+  expect_failures = [var.agent_name]
+}
+
+run "agent_name_rejects_underscores" {
+  command = plan
+
+  variables {
+    agent_name = "opa_1"
+  }
+
+  expect_failures = [var.agent_name]
+}

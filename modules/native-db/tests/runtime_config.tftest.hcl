@@ -107,3 +107,26 @@ run "the_logical_module_gets_only_the_inputs_it_still_declares" {
     error_message = "The worker only advertises managed IAM when the logical module inputs carry the connector role it was configured with."
   }
 }
+
+# Backend keys partition by profile only. The lifecycle environment axis is
+# gone from the worker contract; keeping {{environment}} here would expand to
+# "unknown" (or a stale literal) and force a state migration later.
+run "backend_keys_partition_by_profile_not_environment" {
+  command = plan
+
+  assert {
+    condition = jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_database.terraform.backend.key == "native-db/opa1/logical/{{profile}}/{{resource_key}}.tfstate"
+    error_message = "Logical state must live under <key_prefix>/logical/{{profile}}/{{resource_key}}.tfstate with no environment segment."
+  }
+
+  assert {
+    condition = jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_physical_database_instance.terraform.backend.key == "native-db/opa1/physical/{{profile}}/{{resource_key}}.tfstate"
+    error_message = "Physical state must live under <key_prefix>/physical/{{profile}}/{{resource_key}}.tfstate with no environment segment."
+  }
+}

@@ -20,7 +20,7 @@ variable "region" {
 
 variable "key_prefix" {
   type        = string
-  description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Must be unique per OPA — using the agent name as a suffix is recommended (e.g. \"native-db/prod\"). Logical database state lands under <key_prefix>/logical/... and physical instance state under <key_prefix>/physical/..."
+  description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Must be unique per OPA — using the agent name as a suffix is recommended (e.g. \"native-db/prod\"). Logical database state lands under <key_prefix>/logical/{{profile}}/... and physical instance state under <key_prefix>/physical/{{profile}}/..."
 
   validation {
     condition     = length(var.key_prefix) > 0 && !startswith(var.key_prefix, "/") && !endswith(var.key_prefix, "/")
@@ -33,8 +33,8 @@ variable "agent_name" {
   description = "Stable name for this OPA deployment (the agents map key from native-db-prereqs, e.g. \"opa1\"). Used as the physical database pool identity. Must be unique within your AWS account and must not change once databases exist."
 
   validation {
-    condition     = can(regex("^[a-z0-9_-]{1,15}$", var.agent_name))
-    error_message = "agent_name must be 1–15 lowercase alphanumeric characters, hyphens, or underscores (matching the agents map key constraint in native-db-prereqs)."
+    condition     = can(regex("^[a-z0-9]{1,15}$", var.agent_name))
+    error_message = "agent_name must be 1–15 lowercase alphanumeric characters (matching the agents map key constraint in native-db-prereqs)."
   }
 }
 

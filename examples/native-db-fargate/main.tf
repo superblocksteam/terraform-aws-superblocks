@@ -97,11 +97,7 @@ module "native_db_opa1" {
     # = 2 keeps a second warm instance for immediate failover.
     #
     # min_acu = 0 lets a cluster pause when idle. Use it for nonprod, not
-    # production. To run fixed instances instead of Serverless v2, replace this
-    # block with `deployment = { provisioned = { instance_class =
-    # "db.r6g.large", instance_count = 2 } }`. For a standalone RDS instance
-    # rather than an Aurora cluster, omit `deployment` and set
-    # `allocated_storage` and `instance_class` instead.
+    # production.
     deployment = {
       serverless_v2 = {
         instance_count = 2
@@ -109,6 +105,18 @@ module "native_db_opa1" {
         min_acu        = 2
       }
     }
+
+    # Aurora with fixed instances instead of Serverless v2:
+    # deployment = {
+    #   provisioned = {
+    #     instance_class = "db.r6g.large"
+    #     instance_count = 2
+    #   }
+    # }
+
+    # Standalone RDS instead of an Aurora cluster (omit deployment above):
+    # allocated_storage = 100
+    # instance_class    = "db.t4g.medium"
 
     vpc_id = "vpc-0123456789abcdef0"
 
