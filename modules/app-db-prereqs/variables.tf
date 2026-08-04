@@ -58,8 +58,8 @@ variable "agents" {
 
 variable "name_prefix" {
   type        = string
-  default     = "sb-native-db"
-  description = "Prefix applied to all IAM roles, policies, and the S3 state bucket created by this module. Defaults to 'sb-native-db'. Override when your organization requires a specific naming convention. Max 16 characters (combined with region (≤14) and account ID (12) the bucket name stays under S3's 63-character limit)."
+  default     = "sb-app-db"
+  description = "Prefix applied to all IAM roles, policies, and the S3 state bucket created by this module. Defaults to 'sb-app-db'. Override when your organization requires a specific naming convention. Max 16 characters (combined with region (≤14) and account ID (12) the bucket name stays under S3's 63-character limit)."
 
   validation {
     condition     = can(regex("^[a-z0-9][a-z0-9-]{0,14}[a-z0-9]$", var.name_prefix))
@@ -87,5 +87,5 @@ variable "existing_monitoring_role_arn" {
 variable "tags" {
   type        = map(string)
   default     = {}
-  description = "Additional tags to apply to all resources created by this module. Do not set ManagedBy — the module always enforces ManagedBy = \"superblocks-native-database-lifecycle\", which is required for IAM conditions that scope the lifecycle worker's blast radius."
+  description = "Additional tags to apply to all resources created by this module. Do not set ManagedBy — the module always enforces ManagedBy = \"superblocks-app-database-lifecycle\", which is required for IAM conditions that scope the lifecycle worker's blast radius."
 }

@@ -6,7 +6,7 @@ output "agents" {
       agent_tags                = var.agents[k].agent_tags
     }
   }
-  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN), and agent_tags (pass as agent_tags to the native-db module)."
+  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN), and agent_tags (pass as agent_tags to the app-db module)."
 }
 
 output "enhanced_monitoring_role_arn" {
@@ -21,5 +21,5 @@ output "state_bucket_name" {
 
 output "tags" {
   value       = local.tags
-  description = "Tags applied to all resources created by this module. Pass to the native-db module's physical_module_inputs.tags to tag RDS instances with the same values."
+  description = "Tags applied to all resources created by this module. Pass to the app-db module's physical_module_inputs.tags to tag RDS instances with the same values."
 }
