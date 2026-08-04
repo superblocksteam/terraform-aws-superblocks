@@ -13,7 +13,8 @@ provider "aws" {
 #   superblocks_agent_environment_variables = module.native_db_opa1.ecs_env_vars
 #
 # Do NOT invoke the root module a second time (step 3 below) — that would
-# create a duplicate OPA deployment, not add native DB to your existing one.
+# create a duplicate OPA deployment. Update your existing module block instead,
+# as shown above.
 #
 # Deploying a new OPA with native DB from scratch? Follow all three steps.
 # -----------------------------------------------------------------------
