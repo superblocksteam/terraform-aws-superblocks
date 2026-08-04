@@ -73,6 +73,17 @@ variable "kms_key_arn" {
   description = "ARN of the KMS key for the OpenTofu state bucket. When provided, the bucket is configured with SSE-KMS using this key and IAM KMS permissions are scoped to it. When null, the bucket uses the AWS account default encryption and IAM KMS permissions fall back to Resource:* conditioned on aws:CalledVia s3.amazonaws.com."
 }
 
+variable "existing_monitoring_role_arn" {
+  type        = string
+  default     = null
+  description = "ARN of an existing account-level RDS Enhanced Monitoring role. When null, the module creates <name_prefix>-enhanced-monitoring. Set this in additional regions so every worker reuses one shared role instead of creating a second copy. The physical database modules take this ARN as monitoring_role_arn; the worker is granted iam:PassRole on it and nothing else. Setting this on a deployment that previously created the role destroys that role: any database still configured with the old ARN loses Enhanced Monitoring until the physical modules are re-pointed at the role you supply here, so re-point them first."
+
+  validation {
+    condition     = var.existing_monitoring_role_arn == null || can(regex("^arn:aws:iam::[0-9]{12}:role/([A-Za-z0-9+=,.@_-]+/)*[A-Za-z0-9+=,.@_-]+$", var.existing_monitoring_role_arn))
+    error_message = "existing_monitoring_role_arn must be a concrete IAM role ARN in the aws partition, with an optional path and no wildcards. The rest of this module hardcodes arn:aws:, so aws-us-gov and aws-cn ARNs are not supported."
+  }
+}
+
 variable "tags" {
   type        = map(string)
   default     = {}

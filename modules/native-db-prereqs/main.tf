@@ -50,6 +50,31 @@ locals {
     subgrp           = "${local.rds_prefix}:subgrp:sb-*"
   }
 
+  # Log groups the physical modules declare explicitly, named
+  # /aws/rds/{cluster,instance}/<sb-identifier>/<log type>.
+  native_cloudwatch_log_group_arn_patterns = [
+    "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/rds/cluster/sb-*",
+    "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/rds/instance/sb-*",
+  ]
+
+  # Regions are wildcarded because one account-level monitoring role serves
+  # every region the worker provisions into; aws:SourceAccount is what blocks
+  # cross-account use.
+  native_rds_monitoring_source_arn_patterns = [
+    "arn:aws:rds:*:${data.aws_caller_identity.current.account_id}:cluster:sb-*",
+    "arn:aws:rds:*:${data.aws_caller_identity.current.account_id}:db:sb-*",
+  ]
+
+  # Account-level Enhanced Monitoring role. The physical modules never create
+  # it — callers pass this ARN as monitoring_role_arn. Additional regions can
+  # reuse an existing role via existing_monitoring_role_arn.
+  create_monitoring_role = var.existing_monitoring_role_arn == null
+  monitoring_role_arn = (
+    local.create_monitoring_role
+    ? aws_iam_role.enhanced_monitoring[0].arn
+    : var.existing_monitoring_role_arn
+  )
+
   # ----------------------------------------------------------------
   # S3 state bucket ARN (always created, shared across all agents)
   # ----------------------------------------------------------------
@@ -853,6 +878,128 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_secrets" {
   for_each   = var.agents
   role       = local.agent_role_names[each.key]
   policy_arn = aws_iam_policy.lifecycle_worker_secrets[each.key].arn
+}
+
+# ----------------------------------------------------------------
+# Policy: Observability (CloudWatch log groups + Enhanced Monitoring PassRole)
+#
+# The physical modules declare CloudWatch log groups explicitly so retention
+# is managed rather than left unbounded, and they attach the shared
+# monitoring role below. AWS requires whoever enables Enhanced Monitoring to
+# hold iam:PassRole on the role being handed to RDS, so that grant is scoped
+# to the single role and conditioned on the one service allowed to receive it.
+# ----------------------------------------------------------------
+resource "aws_iam_policy" "lifecycle_worker_observability" {
+  for_each = var.agents
+
+  name        = "${var.name_prefix}-${each.key}-observability-${var.region}"
+  description = "Allows the ${each.key} lifecycle worker to manage Native DB CloudWatch log groups and pass the shared Enhanced Monitoring role."
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "CloudWatchLogGroupsForNativeDatabases"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:DeleteLogGroup",
+          "logs:ListTagsForResource",
+          "logs:PutRetentionPolicy",
+          "logs:TagResource",
+          "logs:UntagResource",
+        ]
+        Resource = local.native_cloudwatch_log_group_arn_patterns
+      },
+      # The provider reads aws_cloudwatch_log_group through DescribeLogGroups,
+      # which AWS authorizes only against "*" — an iam:SimulateCustomPolicy run
+      # denies it against every log-group ARN pattern. Listing it beside the
+      # scoped actions above silently loses the permission at refresh time.
+      {
+        Sid      = "DescribeLogGroupsIsNotResourceScopable"
+        Effect   = "Allow"
+        Action   = "logs:DescribeLogGroups"
+        Resource = "*"
+      },
+      # CreateDBInstance passes the monitoring role as rds.amazonaws.com, not as
+      # the monitoring.rds.amazonaws.com principal that assumes it. Conditioning
+      # on the latter denies every physical provision once monitoring_interval
+      # is non-zero: AWS reports "no identity-based policy allows the
+      # iam:PassRole action" even though the statement's resource matches.
+      {
+        Sid      = "PassEnhancedMonitoringRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
+        Resource = local.monitoring_role_arn
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = "rds.amazonaws.com"
+          }
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lifecycle_worker_observability" {
+  for_each   = var.agents
+  role       = local.agent_role_names[each.key]
+  policy_arn = aws_iam_policy.lifecycle_worker_observability[each.key].arn
+}
+
+####################################################################
+# Enhanced Monitoring IAM Role (one per account, shared by all agents)
+#
+# RDS assumes this role to publish Enhanced Monitoring OS metrics to the
+# RDSOSMetrics log group. The physical modules never create it: the attached
+# AWS-managed policy is identical for every database, so one account-level
+# role is reused by all of them and the worker never needs iam:CreateRole.
+# The ArnLike/SourceAccount pair is confused-deputy protection — without it
+# any RDS database in any account could name this role.
+#
+# IAM role names are account-global, so this name cannot repeat within one
+# account: a second region (or a second install) must pass
+# existing_monitoring_role_arn instead of letting the module create its own,
+# or CreateRole fails with EntityAlreadyExists.
+####################################################################
+resource "aws_iam_role" "enhanced_monitoring" {
+  count = local.create_monitoring_role ? 1 : 0
+
+  name = "${var.name_prefix}-enhanced-monitoring"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowRdsEnhancedMonitoringForLifecycleDatabases"
+        Effect = "Allow"
+        Principal = {
+          Service = "monitoring.rds.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = local.native_rds_monitoring_source_arn_patterns
+          }
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      }
+    ]
+  })
+
+  description = "RDS Enhanced Monitoring role shared by every native-database instance and cluster"
+
+  tags = merge(local.tags, {
+    Purpose = "RDS Enhanced Monitoring for native databases"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "enhanced_monitoring" {
+  count = local.create_monitoring_role ? 1 : 0
+
+  role       = aws_iam_role.enhanced_monitoring[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
 ####################################################################

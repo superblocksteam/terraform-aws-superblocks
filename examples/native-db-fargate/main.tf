@@ -56,15 +56,31 @@ module "native_db_prereqs" {
   # When omitted, the bucket uses AWS account-default encryption (SSE-S3).
   # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
 
+  # Optional: reuse an account-level Enhanced Monitoring role created by a
+  # prior regional apply of this module. The role name is account-scoped
+  # (<name_prefix>-enhanced-monitoring), so a second region must pass the ARN
+  # from the first instead of creating another copy.
+  # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+
   # Optional: additional tags applied to all resources created by this module.
   tags = {
     Environment = "production"
   }
 }
 
+# Pass enhanced_monitoring_role_arn into modules/native-db (step 2) as
+# physical_module_inputs.monitoring_role_arn. Physical modules default
+# monitoring_interval to 60 and reject plans when the role ARN is missing.
+# Opt out with monitoring_interval = 0.
+
 output "agents" {
   value       = module.native_db_prereqs.agents
   description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (set as ECS task role ARN) and connector_role_arn (pass to the OPA runtime config as SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN)."
+}
+
+output "enhanced_monitoring_role_arn" {
+  value       = module.native_db_prereqs.enhanced_monitoring_role_arn
+  description = "Pass into modules/native-db (or physicalModuleInputs.monitoring_role_arn) so Enhanced Monitoring can attach. Required unless you set monitoring_interval = 0."
 }
 
 output "state_bucket_name" {
