@@ -171,9 +171,9 @@ run "grants_native_database_observability_permissions" {
       one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
         statement.Condition.StringEquals["iam:PassedToService"] if statement.Sid == "PassEnhancedMonitoringRole"
-      ]) == "monitoring.rds.amazonaws.com"
+      ]) == "rds.amazonaws.com"
     )
-    error_message = "Enhanced Monitoring attach requires iam:PassRole, scoped to the shared monitoring role and to RDS monitoring alone."
+    error_message = "Enhanced Monitoring attach requires iam:PassRole scoped to the shared monitoring role, conditioned on the service RDS actually passes it as (rds.amazonaws.com, not the monitoring.rds.amazonaws.com principal that assumes it)."
   }
 
   assert {

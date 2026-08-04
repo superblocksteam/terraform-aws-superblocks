@@ -920,6 +920,11 @@ resource "aws_iam_policy" "lifecycle_worker_observability" {
         Action   = "logs:DescribeLogGroups"
         Resource = "*"
       },
+      # CreateDBInstance passes the monitoring role as rds.amazonaws.com, not as
+      # the monitoring.rds.amazonaws.com principal that assumes it. Conditioning
+      # on the latter denies every physical provision once monitoring_interval
+      # is non-zero: AWS reports "no identity-based policy allows the
+      # iam:PassRole action" even though the statement's resource matches.
       {
         Sid      = "PassEnhancedMonitoringRole"
         Effect   = "Allow"
@@ -927,7 +932,7 @@ resource "aws_iam_policy" "lifecycle_worker_observability" {
         Resource = local.monitoring_role_arn
         Condition = {
           StringEquals = {
-            "iam:PassedToService" = "monitoring.rds.amazonaws.com"
+            "iam:PassedToService" = "rds.amazonaws.com"
           }
         }
       },
