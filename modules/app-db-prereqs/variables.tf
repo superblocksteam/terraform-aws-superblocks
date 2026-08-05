@@ -46,9 +46,17 @@ variable "agents" {
       for agent in values(var.agents) :
       length(agent.agent_tags) > 0 &&
       alltrue([for t in agent.agent_tags : length(t) > 0]) &&
-      length(agent.agent_tags) == length(toset(agent.agent_tags))
+      length(agent.agent_tags) == length(toset([for t in agent.agent_tags : lower(t)]))
     ])
-    error_message = "Each agent must have at least one unique, non-empty agent_tag."
+    error_message = "Each agent must have at least one non-empty agent_tag, with no duplicates within the agent (comparison is case-insensitive)."
+  }
+
+  validation {
+    condition = (
+      length(flatten([for agent in values(var.agents) : agent.agent_tags])) ==
+      length(toset(flatten([for agent in values(var.agents) : [for t in agent.agent_tags : lower(t)]])))
+    )
+    error_message = "agent_tags must be unique across all agents (comparison is case-insensitive)."
   }
 
   validation {
