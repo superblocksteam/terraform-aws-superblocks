@@ -2,7 +2,30 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Step 1 of 2 for Fargate customers: bootstrap IAM roles and S3 state bucket.
+# -----------------------------------------------------------------------
+# Adding native DB to an existing OPA deployment?
+#
+# Add steps 1 and 2 below to your existing Terraform configuration (the
+# same root that manages your OPA ECS task), then update your existing
+# terraform-aws-superblocks module block with three new arguments:
+#
+#   superblocks_agent_tags                  = module.native_db_opa1.superblocks_agent_tags
+#   superblocks_agent_role_arn              = module.native_db_prereqs.agents["opa1"].lifecycle_worker_role_arn
+#   superblocks_agent_environment_variables = module.native_db_opa1.ecs_env_vars
+#
+# IMPORTANT: set existing_role_name (in the agents block below) to your
+# current ECS task role name so native-db-prereqs attaches its policies to
+# that role rather than creating a new one. Replacing superblocks_agent_role_arn
+# with a brand-new role drops any permissions your existing integrations rely on.
+#
+# Do NOT invoke the root module a second time (step 3 below) — that would
+# create a duplicate OPA deployment. Update your existing module block instead,
+# as shown above.
+#
+# Deploying a new OPA with native DB from scratch? Follow all three steps.
+# -----------------------------------------------------------------------
+
+# Step 1 of 3: bootstrap IAM roles and S3 state bucket.
 # Pass the outputs of this module into modules/native-db (step 2), which
 # generates the ecs_env_vars wired into the OPA ECS task definition.
 #
@@ -70,13 +93,10 @@ module "native_db_prereqs" {
   }
 }
 
-# Step 2 of 2: generate the runtime configuration the OPA ECS container needs to
-# run the lifecycle worker. Call this once per OPA. In the
-# terraform-aws-superblocks root module that manages the ECS task definition,
-# pass ecs_env_vars as superblocks_agent_environment_variables and
-# superblocks_agent_tags as superblocks_agent_tags — the worker reads the
-# profiles it serves from those tags, so taking them from this module keeps them
-# from drifting away from the databases it is configured to provision.
+# Step 2 of 3: generate the environment variables the OPA ECS container needs
+# to run the lifecycle worker. Call this once per OPA. Pass ecs_env_vars as
+# superblocks_agent_environment_variables in the terraform-aws-superblocks root
+# module that manages the ECS task definition.
 #
 # Registry path (when consuming from Terraform Registry):
 #   source  = "superblocksteam/superblocks/aws//modules/native-db"
@@ -140,14 +160,47 @@ module "native_db_opa1" {
     # or set monitoring_interval = 0 to turn Enhanced Monitoring off.
     monitoring_role_arn = module.native_db_prereqs.enhanced_monitoring_role_arn
 
-    # Optional: restrict which security groups (e.g. your OPA task SG) can reach
-    # the database over port 5432.
-    # source_security_group_ids = ["sg-0123456789abcdef0"]
+    # The OPA ECS task SG — allows it to reach the provisioned database on port
+    # 5432. Must be pre-created and passed here (rather than referencing the root
+    # module's auto-created ECS SG) because native-db feeds into the root module,
+    # making a back-reference a dependency cycle.
+    source_security_group_ids = ["sg-your-opa-task-sg"]
   }
 
   # Optional: override the pool capacity. Default is 100 logical databases per
   # Aurora cluster before a new cluster is automatically provisioned.
   # pool = { max_databases = 50 }
+}
+
+# Step 3 of 3: deploy the OPA ECS task, wiring in the native DB role and env
+# vars from the two modules above.
+#
+# Skip this step if you are adding native DB to an existing OPA deployment —
+# update your existing terraform-aws-superblocks module block instead (see the
+# comment at the top of this file).
+#
+# Registry path (when consuming from Terraform Registry):
+#   source  = "superblocksteam/superblocks/aws"
+#   version = "~>1.0"
+module "superblocks_opa1" {
+  source = "../../"
+
+  # Required inputs for your OPA deployment (fill in your values):
+  superblocks_agent_key = "YOUR_AGENT_KEY"
+  domain                = "your-agent.example.com"
+  vpc_id                = "vpc-0123456789abcdef0"
+  ecs_subnet_ids        = ["subnet-0000000000000001", "subnet-0000000000000002"]
+  lb_subnet_ids         = ["subnet-0000000000000001", "subnet-0000000000000002"]
+
+  # Native DB additions — wire these in from the modules above.
+  superblocks_agent_tags                  = module.native_db_opa1.superblocks_agent_tags
+  superblocks_agent_role_arn              = module.native_db_prereqs.agents["opa1"].lifecycle_worker_role_arn
+  superblocks_agent_environment_variables = module.native_db_opa1.ecs_env_vars
+
+  # Attach the pre-created OPA task SG so the ECS task ENI is in the same SG
+  # referenced by source_security_group_ids in Step 2. This coexists with the
+  # module's auto-created ECS SG (create_ecs_sg = true).
+  ecs_security_group_ids = ["sg-your-opa-task-sg"]
 }
 
 output "agents" {
@@ -165,12 +218,3 @@ output "state_bucket_name" {
   description = "S3 bucket used by the OPA lifecycle workers to store OpenTofu state."
 }
 
-output "opa1_ecs_env_vars" {
-  value       = module.native_db_opa1.ecs_env_vars
-  description = "Pass as superblocks_agent_environment_variables in the terraform-aws-superblocks root module for the opa1 ECS task definition."
-}
-
-output "opa1_superblocks_agent_tags" {
-  value       = module.native_db_opa1.superblocks_agent_tags
-  description = "Pass as superblocks_agent_tags in the terraform-aws-superblocks root module for the opa1 ECS task definition."
-}
