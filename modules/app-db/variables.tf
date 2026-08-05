@@ -23,8 +23,8 @@ variable "key_prefix" {
   description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Pass the app-db-prereqs module output agents[<agent_name>].key_prefix — that module's IAM grants the lifecycle worker access under that prefix only, so a hand-written value that differs fails every state read/write with AccessDenied. Override the prefix itself on the prereqs agents entry, not here. Logical database state lands under <key_prefix>/logical/{{profile}}/... and physical instance state under <key_prefix>/physical/{{profile}}/..."
 
   validation {
-    condition     = length(var.key_prefix) > 0 && !startswith(var.key_prefix, "/") && !endswith(var.key_prefix, "/")
-    error_message = "key_prefix must be non-empty and must not start or end with a slash."
+    condition     = can(regex("^[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)*$", var.key_prefix))
+    error_message = "key_prefix must be one or more slash-separated segments of letters, digits, dots, underscores, or hyphens (e.g. \"app-db/opa1\"). Wildcards, empty segments, and leading or trailing slashes are not permitted — app-db-prereqs applies the same rule before granting IAM on the prefix."
   }
 }
 

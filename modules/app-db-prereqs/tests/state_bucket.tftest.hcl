@@ -139,6 +139,22 @@ run "a_caller_can_name_its_own_prefix" {
   }
 }
 
+run "wildcard_prefixes_are_rejected" {
+  command = plan
+
+  variables {
+    agents = {
+      opa1 = {
+        agent_tags = ["nonprod"]
+        key_prefix = "app-db/*"
+        vpc_id     = "vpc-0123456789abcdef0"
+      }
+    }
+  }
+
+  expect_failures = [var.agents]
+}
+
 run "overlapping_prefixes_are_rejected" {
   command = plan
 

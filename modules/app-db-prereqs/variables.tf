@@ -56,16 +56,16 @@ variable "agents" {
     error_message = "Each agent's vpc_id must be a valid VPC ID (e.g. vpc-0123456789abcdef0)."
   }
 
+  # The prefix is interpolated into an IAM Resource ARN and a StringLike
+  # s3:prefix condition, where * and ? are wildcards — "app-db/*" would grant
+  # this worker every other agent's state. Allow only literal path segments so
+  # the prefix cannot widen the grant it is supposed to narrow.
   validation {
     condition = alltrue([
       for agent in values(var.agents) :
-      agent.key_prefix == null || (
-        length(agent.key_prefix) > 0 &&
-        !startswith(agent.key_prefix, "/") &&
-        !endswith(agent.key_prefix, "/")
-      )
+      agent.key_prefix == null || can(regex("^[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)*$", agent.key_prefix))
     ])
-    error_message = "Each agent's key_prefix must be non-empty and must not start or end with a slash."
+    error_message = "Each agent's key_prefix must be one or more slash-separated segments of letters, digits, dots, underscores, or hyphens (e.g. \"app-db/prod-db1\"). Wildcards, empty segments, and leading or trailing slashes are not permitted."
   }
 
   # The state-bucket policy grants each worker s3:prefix <prefix>/ and
