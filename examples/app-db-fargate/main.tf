@@ -49,6 +49,8 @@ module "app_db_prereqs" {
       # the lowercased tag — so "nonprod" creates runtime users as
       # sbndb_6fdc0c6b96ee8a74_<application-token>_runtime.
       # Must match the superblocks_agent_tags configured for this OPA.
+      # Tags must be unique across all agents in this module invocation — two agents
+      # sharing a tag would collide on S3 state keys.
       agent_tags = ["nonprod", "production"]
 
       # VPC the lifecycle worker is allowed to provision RDS/Aurora into.
