@@ -6,9 +6,14 @@ provider "aws" {
 # Adding App DB to an existing OPA deployment?
 #
 # Add steps 1 and 2 below to your existing Terraform configuration (the
-# same root that manages your OPA ECS task), then copy the three
+# same root that manages your OPA ECS task), then copy the
 # superblocks_agent_* arguments from the module "superblocks_opa1" block
-# in Step 3 below into your existing terraform-aws-superblocks module block.
+# in Step 3 below into your existing terraform-aws-superblocks module block
+# (including the superblocks_agent_image pin).
+#
+# IMPORTANT: pin superblocks_agent_image to v1.46.0 or later. modules/app-db
+# emits the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG shape that older images
+# reject at startup with "database lifecycle config entries are required".
 #
 # IMPORTANT: set existing_role_name (in the agents block below) to your
 # current ECS task role name so app-db-prereqs attaches its policies to
@@ -188,6 +193,10 @@ module "superblocks_opa1" {
   vpc_id                = "vpc-0123456789abcdef0"
   ecs_subnet_ids        = ["subnet-0000000000000001", "subnet-0000000000000002"]
   lb_subnet_ids         = ["subnet-0000000000000001", "subnet-0000000000000002"]
+
+  # App DB requires OPA v1.46.0+. The untagged default image may be older and
+  # will exit on the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG this module emits.
+  superblocks_agent_image = "ghcr.io/superblocksteam/agent:v1.46.0"
 
   # App DB additions — wire these in from the modules above.
   superblocks_agent_tags                  = module.app_db_opa1.superblocks_agent_tags

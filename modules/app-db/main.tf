@@ -164,6 +164,11 @@ locals {
   # The profiles this OPA serves are deliberately absent — they are declared
   # once as agent tags, and the worker rejects a profiles key here outright so
   # the two can never disagree.
+  #
+  # Requires OPA image v1.46.0 or later. Older images still expect an `entries`
+  # array and exit at startup with "database lifecycle config entries are
+  # required". Pin superblocks_agent_image when wiring ecs_env_vars into the
+  # root module (see examples/app-db-fargate).
   lifecycle_config = {
     engines    = ["postgres"]
     operations = local.lifecycle_operations
