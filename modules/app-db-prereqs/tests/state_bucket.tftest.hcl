@@ -1,4 +1,4 @@
-# Shared state bucket: each worker may only touch native-db/<agent>/. Without a
+# Shared state bucket: each worker may only touch app-db/<agent>/. Without a
 # CMK the bucket is SSE-S3, so the policy must not attach a KMS Resource:*.
 
 mock_provider "aws" {
@@ -19,6 +19,13 @@ mock_provider "aws" {
       arn = "arn:aws:iam::123456789012:role/mock"
     }
   }
+
+  mock_resource "aws_s3_bucket" {
+    defaults = {
+      arn = "arn:aws:s3:::sb-app-db-us-east-1-123456789012"
+      id  = "sb-app-db-us-east-1-123456789012"
+    }
+  }
 }
 
 variables {
@@ -30,7 +37,7 @@ variables {
       agent_tags = ["nonprod"]
       vpc_id     = "vpc-0123456789abcdef0"
     }
-    opa2 = {
+    opa10 = {
       agent_tags = ["staging"]
       vpc_id     = "vpc-0fedcba9876543210"
     }
@@ -46,9 +53,9 @@ run "state_access_is_scoped_per_agent" {
       one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_state_bucket[name].policy).Statement :
         statement.Resource if statement.Sid == "StateBucketObjectReadWrite"
-      ]) == "${aws_s3_bucket.tofu_state.arn}/native-db/${name}/*"
+      ]) == "arn:aws:s3:::sb-app-db-us-east-1-123456789012/app-db/${name}/*"
     ])
-    error_message = "Each worker's object access must be limited to native-db/<agent>/*, not the whole bucket."
+    error_message = "Each worker's object access must be limited to app-db/<agent>/*, not the whole bucket."
   }
 
   assert {
@@ -57,9 +64,9 @@ run "state_access_is_scoped_per_agent" {
       one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_state_bucket[name].policy).Statement :
         statement.Condition.StringLike["s3:prefix"] if statement.Sid == "StateBucketList"
-      ]) == ["native-db/${name}", "native-db/${name}/*"]
+      ]) == ["app-db/${name}/", "app-db/${name}/*"]
     ])
-    error_message = "ListBucket must require s3:prefix under native-db/<agent>/."
+    error_message = "ListBucket must require slash-bounded s3:prefix under app-db/<agent>/."
   }
 
   assert {
@@ -71,8 +78,28 @@ run "state_access_is_scoped_per_agent" {
   }
 
   assert {
-    condition     = output.agents["opa1"].key_prefix == "native-db/opa1"
+    condition     = output.agents["opa1"].key_prefix == "app-db/opa1"
     error_message = "agents[].key_prefix must match the IAM-granted state prefix."
+  }
+}
+
+run "list_prefix_does_not_collide_across_agent_name_prefixes" {
+  command = plan
+
+  assert {
+    condition = one([
+      for statement in jsondecode(aws_iam_policy.lifecycle_worker_state_bucket["opa1"].policy).Statement :
+      statement.Condition.StringLike["s3:prefix"] if statement.Sid == "StateBucketList"
+    ]) == ["app-db/opa1/", "app-db/opa1/*"]
+    error_message = "opa1 must not allow the bare app-db/opa1 prefix that would enumerate opa10 keys."
+  }
+
+  assert {
+    condition = one([
+      for statement in jsondecode(aws_iam_policy.lifecycle_worker_state_bucket["opa10"].policy).Statement :
+      statement.Condition.StringLike["s3:prefix"] if statement.Sid == "StateBucketList"
+    ]) == ["app-db/opa10/", "app-db/opa10/*"]
+    error_message = "opa10 ListBucket prefixes must stay slash-bounded under app-db/opa10/."
   }
 }
 

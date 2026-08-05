@@ -28,7 +28,7 @@ variable "agents" {
     existing_role_name     = optional(string)
     rds_secret_kms_key_arn = optional(string)
   }))
-  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket per module invocation, with object access scoped to native-db/<agent>/."
+  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket per module invocation, with object access scoped to app-db/<agent>/."
 
   validation {
     condition     = length(var.agents) > 0
@@ -58,8 +58,8 @@ variable "agents" {
 
 variable "name_prefix" {
   type        = string
-  default     = "sb-native-db"
-  description = "Prefix applied to all IAM roles, policies, and the S3 state bucket created by this module. Defaults to 'sb-native-db'. Override when your organization requires a specific naming convention. Max 16 characters (combined with region (≤14) and account ID (12) the bucket name stays under S3's 63-character limit)."
+  default     = "sb-app-db"
+  description = "Prefix applied to all IAM roles, policies, and the S3 state bucket created by this module. Defaults to 'sb-app-db'. Override when your organization requires a specific naming convention. Max 16 characters (combined with region (≤14) and account ID (12) the bucket name stays under S3's 63-character limit)."
 
   validation {
     condition     = can(regex("^[a-z0-9][a-z0-9-]{0,14}[a-z0-9]$", var.name_prefix))
@@ -87,5 +87,5 @@ variable "existing_monitoring_role_arn" {
 variable "tags" {
   type        = map(string)
   default     = {}
-  description = "Additional tags to apply to all resources created by this module. Do not set ManagedBy — the module always enforces ManagedBy = \"superblocks-native-database-lifecycle\", which is required for IAM conditions that scope the lifecycle worker's blast radius."
+  description = "Additional tags to apply to all resources created by this module. Do not set ManagedBy — the module always enforces ManagedBy = \"superblocks-app-database-lifecycle\", which is required for IAM conditions that scope the lifecycle worker's blast radius."
 }

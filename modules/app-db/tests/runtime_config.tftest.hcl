@@ -14,13 +14,12 @@ mock_provider "aws" {
 variables {
   agent_name         = "opa1"
   agent_tags         = ["nonprod", "production"]
-  connector_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-opa1-connector"
-  key_prefix         = "native-db/opa1"
+  connector_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-opa1-connector"
   region             = "us-east-1"
-  state_bucket_name  = "sb-native-db-us-east-1-123456789012"
+  state_bucket_name  = "sb-app-db-us-east-1-123456789012"
 
   physical_module_inputs = {
-    monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+    monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
     subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
     vpc_id              = "vpc-0123456789abcdef0"
   }
@@ -132,7 +131,7 @@ run "backend_keys_partition_by_profile_not_environment" {
     condition = jsondecode([
       for env in output.ecs_env_vars : env.value
       if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations.ensure_database.terraform.backend.key == "native-db/opa1/logical/{{profile}}/{{resource_key}}.tfstate"
+    ][0]).operations.ensure_database.terraform.backend.key == "app-db/opa1/logical/{{profile}}/{{resource_key}}.tfstate"
     error_message = "Logical state must live under <key_prefix>/logical/{{profile}}/{{resource_key}}.tfstate with no environment segment."
   }
 
@@ -140,7 +139,7 @@ run "backend_keys_partition_by_profile_not_environment" {
     condition = jsondecode([
       for env in output.ecs_env_vars : env.value
       if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations.ensure_physical_database_instance.terraform.backend.key == "native-db/opa1/physical/{{profile}}/{{resource_key}}.tfstate"
+    ][0]).operations.ensure_physical_database_instance.terraform.backend.key == "app-db/opa1/physical/{{profile}}/{{resource_key}}.tfstate"
     error_message = "Physical state must live under <key_prefix>/physical/{{profile}}/{{resource_key}}.tfstate with no environment segment."
   }
 }

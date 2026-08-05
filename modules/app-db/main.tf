@@ -1,16 +1,12 @@
 data "aws_caller_identity" "current" {}
 
-# native-db-prereqs grants each lifecycle worker object access only under
-# native-db/<agent_name>/. A mismatched key_prefix plans cleanly but every
-# state read/write fails AccessDenied at runtime — catch it here.
-check "key_prefix_matches_prereqs_iam_grant" {
-  assert {
-    condition     = var.key_prefix == "native-db/${var.agent_name}"
-    error_message = "key_prefix must be \"native-db/<agent_name>\" to match the IAM prefix granted by native-db-prereqs (pass agents[<agent_name>].key_prefix)."
-  }
-}
-
 locals {
+  # app-db-prereqs grants each lifecycle worker object access only under
+  # app-db/<agent_name>/. Derive the same prefix here so callers cannot pass a
+  # value that would plan cleanly and then fail every state read/write with
+  # AccessDenied at runtime.
+  key_prefix = "app-db/${var.agent_name}"
+
   # Module sources relative to the dispatch working directory. The OPA image
   # vendors these modules at fixed paths; this module pins those paths and does
   # not expose them as inputs. Operators who need a different source write their
@@ -121,7 +117,7 @@ locals {
   # logical backend key and module).
   logical_terraform = {
     backend = merge(local.s3_backend_base, {
-      key = "${var.key_prefix}/logical/{{profile}}/{{resource_key}}.tfstate"
+      key = "${local.key_prefix}/logical/{{profile}}/{{resource_key}}.tfstate"
     })
     moduleSelectors = {
       postgres = {
@@ -148,7 +144,7 @@ locals {
       backend = "terraform"
       terraform = {
         backend = merge(local.s3_backend_base, {
-          key = "${var.key_prefix}/physical/{{profile}}/{{resource_key}}.tfstate"
+          key = "${local.key_prefix}/physical/{{profile}}/{{resource_key}}.tfstate"
         })
         moduleSelectors = {
           postgres = {
@@ -174,6 +170,11 @@ locals {
   # The profiles this OPA serves are deliberately absent — they are declared
   # once as agent tags, and the worker rejects a profiles key here outright so
   # the two can never disagree.
+  #
+  # Requires OPA image v1.46.0 or later. Older images still expect an `entries`
+  # array and exit at startup with "database lifecycle config entries are
+  # required". Pin superblocks_agent_image when wiring ecs_env_vars into the
+  # root module (see examples/app-db-fargate).
   lifecycle_config = {
     engines    = ["postgres"]
     operations = local.lifecycle_operations
@@ -218,7 +219,7 @@ locals {
       value = var.agent_name
     },
     {
-      name  = "SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN"
+      name  = "SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN"
       value = var.connector_role_arn
     },
     {
