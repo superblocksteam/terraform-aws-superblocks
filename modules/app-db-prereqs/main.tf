@@ -44,7 +44,7 @@ locals {
   # ----------------------------------------------------------------
   # Tagging
   # ----------------------------------------------------------------
-  managed_by_tag = "superblocks-native-database-lifecycle"
+  managed_by_tag = "superblocks-app-database-lifecycle"
   tags           = merge(var.tags, { ManagedBy = local.managed_by_tag })
 
   # ----------------------------------------------------------------
@@ -67,7 +67,7 @@ locals {
 
   # Log groups the physical modules declare explicitly, named
   # /aws/rds/{cluster,instance}/<sb-identifier>/<log type>.
-  native_cloudwatch_log_group_arn_patterns = [
+  app_db_cloudwatch_log_group_arn_patterns = [
     "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/rds/cluster/sb-*",
     "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/rds/instance/sb-*",
   ]
@@ -75,7 +75,7 @@ locals {
   # Regions are wildcarded because one account-level monitoring role serves
   # every region the worker provisions into; aws:SourceAccount is what blocks
   # cross-account use.
-  native_rds_monitoring_source_arn_patterns = [
+  app_db_rds_monitoring_source_arn_patterns = [
     "arn:aws:rds:*:${data.aws_caller_identity.current.account_id}:cluster:sb-*",
     "arn:aws:rds:*:${data.aws_caller_identity.current.account_id}:db:sb-*",
   ]
@@ -243,7 +243,7 @@ resource "aws_iam_policy" "lifecycle_worker_assume_connector" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "AssumeNativeDatabaseConnector"
+        Sid      = "AssumeAppDatabaseConnector"
         Effect   = "Allow"
         Action   = "sts:AssumeRole"
         Resource = [aws_iam_role.connector[each.key].arn]
@@ -473,7 +473,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
         }
       },
       {
-        Sid    = "RdsTagNativeSnapshotOnCreate"
+        Sid    = "RdsTagAppSnapshotOnCreate"
         Effect = "Allow"
         Action = "rds:AddTagsToResource"
         Resource = [
@@ -587,7 +587,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         }
       },
       {
-        Sid      = "RdsCreateNativeClusterSnapshot"
+        Sid      = "RdsCreateAppClusterSnapshot"
         Effect   = "Allow"
         Action   = "rds:CreateDBClusterSnapshot"
         Resource = local.rds_resources.cluster_snapshot
@@ -611,7 +611,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         }
       },
       {
-        Sid      = "RdsCreateNativeSnapshot"
+        Sid      = "RdsCreateAppSnapshot"
         Effect   = "Allow"
         Action   = "rds:CreateDBSnapshot"
         Resource = local.rds_resources.snapshot
@@ -908,13 +908,13 @@ resource "aws_iam_policy" "lifecycle_worker_observability" {
   for_each = var.agents
 
   name        = "${var.name_prefix}-${each.key}-observability-${var.region}"
-  description = "Allows the ${each.key} lifecycle worker to manage Native DB CloudWatch log groups and pass the shared Enhanced Monitoring role."
+  description = "Allows the ${each.key} lifecycle worker to manage App Database CloudWatch log groups and pass the shared Enhanced Monitoring role."
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "CloudWatchLogGroupsForNativeDatabases"
+        Sid    = "CloudWatchLogGroupsForAppDatabases"
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
@@ -924,7 +924,7 @@ resource "aws_iam_policy" "lifecycle_worker_observability" {
           "logs:TagResource",
           "logs:UntagResource",
         ]
-        Resource = local.native_cloudwatch_log_group_arn_patterns
+        Resource = local.app_db_cloudwatch_log_group_arn_patterns
       },
       # The provider reads aws_cloudwatch_log_group through DescribeLogGroups,
       # which AWS authorizes only against "*" — an iam:SimulateCustomPolicy run
@@ -993,7 +993,7 @@ resource "aws_iam_role" "enhanced_monitoring" {
         Action = "sts:AssumeRole"
         Condition = {
           ArnLike = {
-            "aws:SourceArn" = local.native_rds_monitoring_source_arn_patterns
+            "aws:SourceArn" = local.app_db_rds_monitoring_source_arn_patterns
           }
           StringEquals = {
             "aws:SourceAccount" = data.aws_caller_identity.current.account_id
@@ -1003,10 +1003,10 @@ resource "aws_iam_role" "enhanced_monitoring" {
     ]
   })
 
-  description = "RDS Enhanced Monitoring role shared by every native-database instance and cluster"
+  description = "RDS Enhanced Monitoring role shared by every app-database instance and cluster"
 
   tags = merge(local.tags, {
-    Purpose = "RDS Enhanced Monitoring for native databases"
+    Purpose = "RDS Enhanced Monitoring for app databases"
   })
 }
 
@@ -1029,14 +1029,14 @@ resource "aws_iam_role_policy_attachment" "enhanced_monitoring" {
 # grant written against the bare tag matches no DB user and every query fails
 # with AccessDenied.
 #
-# Role name format: superblocks-native-db-connector-{agent_name}
-# "superblocks-native-db-connector" is a reserved prefix: the Superblocks
+# Role name format: superblocks-app-db-connector-{agent_name}
+# "superblocks-app-db-connector" is a reserved prefix: the Superblocks
 # server rejects customer-provided role names starting with it.
 ####################################################################
 resource "aws_iam_role" "connector" {
   for_each = var.agents
 
-  name = "superblocks-native-db-connector-${each.key}"
+  name = "superblocks-app-db-connector-${each.key}"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -1055,7 +1055,7 @@ resource "aws_iam_role" "connector" {
 resource "aws_iam_policy" "connector" {
   for_each = var.agents
 
-  name        = "superblocks-native-db-connector-${each.key}"
+  name        = "superblocks-app-db-connector-${each.key}"
   description = "Allows the ${each.key} connector role to authenticate to RDS/Aurora instances using IAM database authentication."
 
   policy = jsonencode({

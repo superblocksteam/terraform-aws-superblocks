@@ -168,7 +168,7 @@ locals {
   # Requires OPA image v1.46.0 or later. Older images still expect an `entries`
   # array and exit at startup with "database lifecycle config entries are
   # required". Pin superblocks_agent_image when wiring ecs_env_vars into the
-  # root module (see examples/native-db-fargate).
+  # root module (see examples/app-db-fargate).
   lifecycle_config = {
     engines    = ["postgres"]
     operations = local.lifecycle_operations
@@ -213,7 +213,7 @@ locals {
       value = var.agent_name
     },
     {
-      name  = "SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN"
+      name  = "SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN"
       value = var.connector_role_arn
     },
     {

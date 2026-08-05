@@ -23,8 +23,8 @@ mock_provider "aws" {
 
   mock_resource "aws_s3_bucket" {
     defaults = {
-      arn = "arn:aws:s3:::sb-native-db-us-east-1-123456789012"
-      id  = "sb-native-db-us-east-1-123456789012"
+      arn = "arn:aws:s3:::sb-app-db-us-east-1-123456789012"
+      id  = "sb-app-db-us-east-1-123456789012"
     }
   }
 }
@@ -88,7 +88,7 @@ override_resource {
   values = { arn = "arn:aws:iam::123456789012:policy/mock-connector-policy" }
 }
 
-run "grants_native_database_observability_permissions" {
+run "grants_app_database_observability_permissions" {
   command = plan
 
   variables {
@@ -115,7 +115,7 @@ run "grants_native_database_observability_permissions" {
       ] :
       contains(one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
-        statement.Action if statement.Sid == "CloudWatchLogGroupsForNativeDatabases"
+        statement.Action if statement.Sid == "CloudWatchLogGroupsForAppDatabases"
       ]), action)
     ])
     error_message = "The worker must be able to manage the log groups the physical modules declare explicitly."
@@ -124,7 +124,7 @@ run "grants_native_database_observability_permissions" {
   assert {
     condition = jsonencode(one([
       for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
-      statement.Resource if statement.Sid == "CloudWatchLogGroupsForNativeDatabases"
+      statement.Resource if statement.Sid == "CloudWatchLogGroupsForAppDatabases"
       ])) == jsonencode([
       "arn:aws:logs:us-east-1:123456789012:log-group:/aws/rds/cluster/sb-*",
       "arn:aws:logs:us-east-1:123456789012:log-group:/aws/rds/instance/sb-*",
@@ -139,7 +139,7 @@ run "grants_native_database_observability_permissions" {
   assert {
     condition = !contains(one([
       for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
-      statement.Action if statement.Sid == "CloudWatchLogGroupsForNativeDatabases"
+      statement.Action if statement.Sid == "CloudWatchLogGroupsForAppDatabases"
     ]), "logs:DescribeLogGroups")
     error_message = "DescribeLogGroups cannot sit in the sb-* scoped statement: AWS will not authorize it against a log-group ARN, so the provider's read fails with AccessDenied."
   }
@@ -178,7 +178,7 @@ run "grants_native_database_observability_permissions" {
 
   assert {
     condition = (
-      aws_iam_role.enhanced_monitoring[0].name == "sb-native-db-enhanced-monitoring" &&
+      aws_iam_role.enhanced_monitoring[0].name == "sb-app-db-enhanced-monitoring" &&
       jsondecode(aws_iam_role.enhanced_monitoring[0].assume_role_policy).Statement[0].Principal.Service == "monitoring.rds.amazonaws.com" &&
       jsondecode(aws_iam_role.enhanced_monitoring[0].assume_role_policy).Statement[0].Action == "sts:AssumeRole" &&
       jsonencode(jsondecode(aws_iam_role.enhanced_monitoring[0].assume_role_policy).Statement[0].Condition.ArnLike["aws:SourceArn"]) == jsonencode([
@@ -215,7 +215,7 @@ run "reuses_an_existing_monitoring_role" {
   variables {
     deployment_type              = "eks"
     region                       = "us-west-2"
-    existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/platform/sb-native-db-enhanced-monitoring"
+    existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/platform/sb-app-db-enhanced-monitoring"
     agents = {
       opa1 = {
         agent_tags        = ["staging"]
@@ -234,12 +234,12 @@ run "reuses_an_existing_monitoring_role" {
     condition = one([
       for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
       statement.Resource if statement.Sid == "PassEnhancedMonitoringRole"
-    ]) == "arn:aws:iam::123456789012:role/platform/sb-native-db-enhanced-monitoring"
+    ]) == "arn:aws:iam::123456789012:role/platform/sb-app-db-enhanced-monitoring"
     error_message = "A worker that reuses an existing monitoring role must be able to pass that role."
   }
 
   assert {
-    condition     = output.enhanced_monitoring_role_arn == "arn:aws:iam::123456789012:role/platform/sb-native-db-enhanced-monitoring"
+    condition     = output.enhanced_monitoring_role_arn == "arn:aws:iam::123456789012:role/platform/sb-app-db-enhanced-monitoring"
     error_message = "The monitoring role output must expose the existing role when one is supplied."
   }
 }
@@ -255,7 +255,7 @@ run "rejects_a_monitoring_role_outside_the_aws_partition" {
   variables {
     deployment_type              = "eks"
     region                       = "us-gov-west-1"
-    existing_monitoring_role_arn = "arn:aws-us-gov:iam::123456789012:role/sb-native-db-enhanced-monitoring"
+    existing_monitoring_role_arn = "arn:aws-us-gov:iam::123456789012:role/sb-app-db-enhanced-monitoring"
     agents = {
       opa1 = {
         agent_tags        = ["nonprod"]
@@ -274,7 +274,7 @@ run "rejects_a_malformed_monitoring_role_arn" {
   variables {
     deployment_type              = "eks"
     region                       = "us-east-1"
-    existing_monitoring_role_arn = "sb-native-db-enhanced-monitoring"
+    existing_monitoring_role_arn = "sb-app-db-enhanced-monitoring"
     agents = {
       opa1 = {
         agent_tags        = ["nonprod"]

@@ -101,7 +101,7 @@ run "the_tags_output_matches_what_the_module_stamps" {
   }
 
   assert {
-    condition     = output.tags == { Environment = "production", ManagedBy = "superblocks-native-database-lifecycle" }
+    condition     = output.tags == { Environment = "production", ManagedBy = "superblocks-app-database-lifecycle" }
     error_message = "The tags output must merge ManagedBy over the caller's tags."
   }
 }

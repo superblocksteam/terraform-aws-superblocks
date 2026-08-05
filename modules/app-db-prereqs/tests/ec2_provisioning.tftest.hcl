@@ -23,8 +23,8 @@ mock_provider "aws" {
 
   mock_resource "aws_s3_bucket" {
     defaults = {
-      arn = "arn:aws:s3:::sb-native-db-us-east-1-123456789012"
-      id  = "sb-native-db-us-east-1-123456789012"
+      arn = "arn:aws:s3:::sb-app-db-us-east-1-123456789012"
+      id  = "sb-app-db-us-east-1-123456789012"
     }
   }
 }

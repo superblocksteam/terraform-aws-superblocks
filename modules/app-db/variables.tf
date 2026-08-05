@@ -1,11 +1,11 @@
 variable "connector_role_arn" {
   type        = string
-  description = "ARN of the connector IAM role (from the native-db-prereqs module output agents[<name>].connector_role_arn). Used to authenticate against RDS via IAM at query time."
+  description = "ARN of the connector IAM role (from the app-db-prereqs module output agents[<name>].connector_role_arn). Used to authenticate against RDS via IAM at query time."
 }
 
 variable "state_bucket_name" {
   type        = string
-  description = "Name of the shared S3 state bucket (from the native-db-prereqs module output state_bucket_name). Shared across all OPAs in the same region."
+  description = "Name of the shared S3 state bucket (from the app-db-prereqs module output state_bucket_name). Shared across all OPAs in the same region."
 }
 
 variable "region" {
@@ -20,7 +20,7 @@ variable "region" {
 
 variable "key_prefix" {
   type        = string
-  description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Must be unique per OPA — using the agent name as a suffix is recommended (e.g. \"native-db/prod\"). Logical database state lands under <key_prefix>/logical/{{profile}}/... and physical instance state under <key_prefix>/physical/{{profile}}/..."
+  description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Must be unique per OPA — using the agent name as a suffix is recommended (e.g. \"app-db/prod\"). Logical database state lands under <key_prefix>/logical/{{profile}}/... and physical instance state under <key_prefix>/physical/{{profile}}/..."
 
   validation {
     condition     = length(var.key_prefix) > 0 && !startswith(var.key_prefix, "/") && !endswith(var.key_prefix, "/")
@@ -30,17 +30,17 @@ variable "key_prefix" {
 
 variable "agent_name" {
   type        = string
-  description = "Stable name for this OPA deployment (the agents map key from native-db-prereqs, e.g. \"opa1\"). Used as the physical database pool identity. Must be unique within your AWS account and must not change once databases exist."
+  description = "Stable name for this OPA deployment (the agents map key from app-db-prereqs, e.g. \"opa1\"). Used as the physical database pool identity. Must be unique within your AWS account and must not change once databases exist."
 
   validation {
     condition     = can(regex("^[a-z0-9]{1,15}$", var.agent_name))
-    error_message = "agent_name must be 1–15 lowercase alphanumeric characters (matching the agents map key constraint in native-db-prereqs)."
+    error_message = "agent_name must be 1–15 lowercase alphanumeric characters (matching the agents map key constraint in app-db-prereqs)."
   }
 }
 
 variable "agent_tags" {
   type        = list(string)
-  description = "Agent profile tags this OPA is registered with (from the native-db-prereqs module output agents[<name>].agent_tags). Used to populate the lifecycle config profiles — must match the agent_tags the OPA advertises to Superblocks. Wildcards are not permitted."
+  description = "Agent profile tags this OPA is registered with (from the app-db-prereqs module output agents[<name>].agent_tags). Used to populate the lifecycle config profiles — must match the agent_tags the OPA advertises to Superblocks. Wildcards are not permitted."
 
   validation {
     condition     = length(var.agent_tags) > 0
@@ -52,7 +52,7 @@ variable "agent_tags" {
       alltrue([for t in var.agent_tags : can(regex("^[a-z0-9-]{1,15}$", t))]) &&
       length(var.agent_tags) == length(toset(var.agent_tags))
     )
-    error_message = "Each agent_tag must be a unique 1-15 lowercase alphanumeric or hyphen string (matching the agents[].agent_tags constraint in native-db-prereqs). Commas and mixed case break the comma-delimited registration string."
+    error_message = "Each agent_tag must be a unique 1-15 lowercase alphanumeric or hyphen string (matching the agents[].agent_tags constraint in app-db-prereqs). Commas and mixed case break the comma-delimited registration string."
   }
 }
 
