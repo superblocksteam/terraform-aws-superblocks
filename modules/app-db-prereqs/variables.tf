@@ -45,10 +45,10 @@ variable "agents" {
     condition = alltrue([
       for agent in values(var.agents) :
       length(agent.agent_tags) > 0 &&
-      alltrue([for t in agent.agent_tags : can(regex("^[a-z0-9-]{1,15}$", t))]) &&
+      alltrue([for t in agent.agent_tags : length(t) > 0]) &&
       length(agent.agent_tags) == length(toset(agent.agent_tags))
     ])
-    error_message = "Each agent must have at least one unique agent_tag; tag names must be 1-15 lowercase alphanumeric characters or hyphens."
+    error_message = "Each agent must have at least one unique, non-empty agent_tag."
   }
 
   validation {
