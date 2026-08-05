@@ -59,6 +59,13 @@ module "app_db_prereqs" {
       # your OPA ECS task already has a role you want to reuse (brownfield).
       # existing_role_name = "my-existing-opa-task-role"
 
+      # Optional: prefix that namespaces this OPA's OpenTofu state in the shared
+      # bucket. Defaults to app-db/<agent_name>. Set it here — this module scopes
+      # the worker's IAM to whatever you choose and publishes it as
+      # agents[<name>].key_prefix for the app-db module below. Prefixes must not
+      # nest under one another.
+      # key_prefix = "app-db/prod-db1"
+
       # Optional: ARN of a customer-managed KMS key used to encrypt the RDS-managed
       # master secret in Secrets Manager. When omitted, the secret uses the AWS-managed
       # Secrets Manager key for your account.
@@ -80,7 +87,8 @@ module "app_db_prereqs" {
   # name_prefix = "acme-app-db"
 
   # Optional: customer-managed KMS key for the OpenTofu state bucket.
-  # When omitted, the bucket uses AWS account-default encryption (SSE-S3).
+  # When omitted, the bucket uses AWS account-default encryption (SSE-S3) and
+  # lifecycle-worker IAM does not grant any KMS actions for state.
   # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
 
   # Optional: reuse an account-level Enhanced Monitoring role created by a
@@ -114,9 +122,10 @@ module "app_db_opa1" {
 
   region = "us-east-1"
 
-  # Namespaces this OPA's OpenTofu state within the shared S3 bucket.
-  # Must be unique per OPA. Using the agent name as a suffix is recommended.
-  key_prefix = "app-db/opa1"
+  # Namespaces this OPA's OpenTofu state within the shared S3 bucket. Always
+  # wire it from the prereqs output so it matches the IAM prefix that module
+  # granted; override the value on the agents entry above, never here.
+  key_prefix = module.app_db_prereqs.agents["opa1"].key_prefix
 
   physical_module_inputs = {
     # Aurora Serverless v2 is the default: capacity scales between min_acu and

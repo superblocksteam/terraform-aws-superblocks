@@ -91,37 +91,39 @@ locals {
   )
 
   # ----------------------------------------------------------------
-  # S3 state bucket ARN (always created, shared across all agents)
+  # S3 state bucket ARN (always created, shared across all agents).
+  # Object keys are partitioned by each agent's key_prefix — app-db/<agent>
+  # unless the caller names one — so IAM can deny cross-agent state
+  # reads/writes even though the bucket is shared. This map is the single
+  # source of truth: it backs both the IAM statements below and the
+  # agents[].key_prefix output the app-db module consumes.
   # ----------------------------------------------------------------
   state_bucket_arn = aws_s3_bucket.tofu_state.arn
 
+  agent_state_key_prefixes = {
+    for k, agent in var.agents : k => coalesce(agent.key_prefix, "app-db/${k}")
+  }
+
   # ----------------------------------------------------------------
-  # KMS statement for the state bucket (module-level, one shared bucket).
-  # When a specific KMS key is provided the Resource is scoped to that key.
-  # When null, Resource is * but access is constrained via CalledVia.
+  # KMS statement for the state bucket. Only attached when the caller
+  # configures a customer-managed key (SSE-KMS). When kms_key_arn is
+  # null the bucket stays on SSE-S3 and no KMS grant is required —
+  # emitting Resource:* gated only by CalledVia would widen decrypt
+  # for brownfield roles that already have broader S3 permissions.
   # ----------------------------------------------------------------
-  state_bucket_kms_statement = merge(
-    {
-      Sid    = "StateBucketKms"
-      Effect = "Allow"
-      Action = [
-        "kms:Decrypt",
-        "kms:DescribeKey",
-        "kms:Encrypt",
-        "kms:GenerateDataKey",
-        "kms:ReEncryptFrom",
-        "kms:ReEncryptTo",
-      ]
-      Resource = var.kms_key_arn != null ? var.kms_key_arn : "*"
-    },
-    var.kms_key_arn == null ? {
-      Condition = {
-        "ForAnyValue:StringEquals" = {
-          "aws:CalledVia" = "s3.amazonaws.com"
-        }
-      }
-    } : {}
-  )
+  state_bucket_kms_statement = var.kms_key_arn == null ? null : {
+    Sid    = "StateBucketKms"
+    Effect = "Allow"
+    Action = [
+      "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:GenerateDataKey",
+      "kms:ReEncryptFrom",
+      "kms:ReEncryptTo",
+    ]
+    Resource = var.kms_key_arn
+  }
 
   # ----------------------------------------------------------------
   # Per-agent OIDC provider URLs (EKS only).
@@ -259,41 +261,62 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_assume_connector" {
 }
 
 # ----------------------------------------------------------------
-# Policy: OpenTofu S3 state backend (shared bucket, per-agent policy)
+# Policy: OpenTofu S3 state backend (shared bucket, per-agent prefix)
+#
+# ListBucket carries an s3:prefix condition, so GetBucketLocation /
+# GetBucketVersioning live in a separate statement — those APIs do not
+# send s3:prefix and would fail closed if they shared the condition.
 # ----------------------------------------------------------------
 resource "aws_iam_policy" "lifecycle_worker_state_bucket" {
   for_each = var.agents
 
   name        = "${var.name_prefix}-${each.key}-state-bucket-${var.region}"
-  description = "Allows the ${each.key} lifecycle worker to read and write OpenTofu state in the shared S3 bucket."
+  description = "Allows the ${each.key} lifecycle worker to read and write OpenTofu state under ${local.agent_state_key_prefixes[each.key]}/ in the shared S3 bucket."
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "StateBucketList"
-        Effect = "Allow"
-        Action = [
-          "s3:GetBucketLocation",
-          "s3:GetBucketVersioning",
-          "s3:ListBucket",
-        ]
-        Resource = local.state_bucket_arn
-      },
-      {
-        Sid    = "StateBucketObjectReadWrite"
-        Effect = "Allow"
-        Action = [
-          "s3:AbortMultipartUpload",
-          "s3:DeleteObject",
-          "s3:GetObject",
-          "s3:GetObjectVersion",
-          "s3:PutObject",
-        ]
-        Resource = "${local.state_bucket_arn}/*"
-      },
-      local.state_bucket_kms_statement,
-    ]
+    Statement = concat(
+      [
+        {
+          Sid    = "StateBucketMetadata"
+          Effect = "Allow"
+          Action = [
+            "s3:GetBucketLocation",
+            "s3:GetBucketVersioning",
+          ]
+          Resource = local.state_bucket_arn
+        },
+        {
+          Sid    = "StateBucketList"
+          Effect = "Allow"
+          Action = [
+            "s3:ListBucket",
+          ]
+          Resource = local.state_bucket_arn
+          Condition = {
+            StringLike = {
+              "s3:prefix" = [
+                "${local.agent_state_key_prefixes[each.key]}/",
+                "${local.agent_state_key_prefixes[each.key]}/*",
+              ]
+            }
+          }
+        },
+        {
+          Sid    = "StateBucketObjectReadWrite"
+          Effect = "Allow"
+          Action = [
+            "s3:AbortMultipartUpload",
+            "s3:DeleteObject",
+            "s3:GetObject",
+            "s3:GetObjectVersion",
+            "s3:PutObject",
+          ]
+          Resource = "${local.state_bucket_arn}/${local.agent_state_key_prefixes[each.key]}/*"
+        },
+      ],
+      local.state_bucket_kms_statement != null ? [local.state_bucket_kms_statement] : []
+    )
   })
 }
 

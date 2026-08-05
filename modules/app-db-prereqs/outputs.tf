@@ -1,12 +1,13 @@
 output "agents" {
   value = {
     for k in keys(var.agents) : k => {
-      lifecycle_worker_role_arn = local.agent_role_arns[k]
-      connector_role_arn        = aws_iam_role.connector[k].arn
       agent_tags                = var.agents[k].agent_tags
+      connector_role_arn        = aws_iam_role.connector[k].arn
+      key_prefix                = local.agent_state_key_prefixes[k]
+      lifecycle_worker_role_arn = local.agent_role_arns[k]
     }
   }
-  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), and agent_tags (pass as agent_tags to the app-db module)."
+  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), agent_tags (pass as agent_tags to the app-db module), and key_prefix (the IAM-backed state prefix — pass as key_prefix to the app-db module; IAM grants state access under this prefix only)."
 }
 
 output "enhanced_monitoring_role_arn" {

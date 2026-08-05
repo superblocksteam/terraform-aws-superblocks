@@ -26,9 +26,10 @@ variable "agents" {
     namespace              = optional(string, "superblocks")
     service_account_name   = optional(string, "superblocks-agent")
     existing_role_name     = optional(string)
+    key_prefix             = optional(string)
     rds_secret_kms_key_arn = optional(string)
   }))
-  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket per module invocation."
+  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket per module invocation, with object access scoped to that agent's key_prefix (default app-db/<agent>). Pass agents[<name>].key_prefix into the app-db module — IAM grants state access under that prefix only."
 
   validation {
     condition     = length(var.agents) > 0
@@ -54,6 +55,35 @@ variable "agents" {
     condition     = alltrue([for agent in values(var.agents) : can(regex("^vpc-[0-9a-f]+$", agent.vpc_id))])
     error_message = "Each agent's vpc_id must be a valid VPC ID (e.g. vpc-0123456789abcdef0)."
   }
+
+  # The prefix is interpolated into an IAM Resource ARN and a StringLike
+  # s3:prefix condition, where * and ? are wildcards — "app-db/*" would grant
+  # this worker every other agent's state. Allow only literal path segments so
+  # the prefix cannot widen the grant it is supposed to narrow.
+  validation {
+    condition = alltrue([
+      for agent in values(var.agents) :
+      agent.key_prefix == null || can(regex("^[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)*$", agent.key_prefix))
+    ])
+    error_message = "Each agent's key_prefix must be one or more slash-separated segments of letters, digits, dots, underscores, or hyphens (e.g. \"app-db/prod-db1\"). Wildcards, empty segments, and leading or trailing slashes are not permitted."
+  }
+
+  # The state-bucket policy grants each worker s3:prefix <prefix>/ and
+  # <prefix>/*. Two agents sharing a prefix — or one nested under another —
+  # would hand each worker the other's state, which is the isolation this
+  # module exists to provide.
+  validation {
+    condition = alltrue([
+      for a, agent_a in var.agents : alltrue([
+        for b, agent_b in var.agents :
+        a == b ? true : !startswith(
+          "${coalesce(agent_b.key_prefix, "app-db/${b}")}/",
+          "${coalesce(agent_a.key_prefix, "app-db/${a}")}/"
+        )
+      ])
+    ])
+    error_message = "Agent key_prefixes must be disjoint: no two agents may share a prefix, and no prefix may nest under another."
+  }
 }
 
 variable "name_prefix" {
@@ -70,7 +100,7 @@ variable "name_prefix" {
 variable "kms_key_arn" {
   type        = string
   default     = null
-  description = "ARN of the KMS key for the OpenTofu state bucket. When provided, the bucket is configured with SSE-KMS using this key and IAM KMS permissions are scoped to it. When null, the bucket uses the AWS account default encryption and IAM KMS permissions fall back to Resource:* conditioned on aws:CalledVia s3.amazonaws.com."
+  description = "ARN of the KMS key for the OpenTofu state bucket. When provided, the bucket is configured with SSE-KMS using this key and lifecycle-worker IAM is granted KMS access only on this key. When null, the bucket uses AWS account-default encryption (SSE-S3) and no state-bucket KMS IAM statement is attached."
 }
 
 variable "existing_monitoring_role_arn" {
