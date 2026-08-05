@@ -103,6 +103,63 @@ run "list_prefix_does_not_collide_across_agent_name_prefixes" {
   }
 }
 
+run "a_caller_can_name_its_own_prefix" {
+  command = plan
+
+  variables {
+    agents = {
+      opa1 = {
+        agent_tags = ["nonprod"]
+        key_prefix = "custom/prod-db1"
+        vpc_id     = "vpc-0123456789abcdef0"
+      }
+      opa10 = {
+        agent_tags = ["staging"]
+        vpc_id     = "vpc-0fedcba9876543210"
+      }
+    }
+  }
+
+  assert {
+    condition = one([
+      for statement in jsondecode(aws_iam_policy.lifecycle_worker_state_bucket["opa1"].policy).Statement :
+      statement.Condition.StringLike["s3:prefix"] if statement.Sid == "StateBucketList"
+    ]) == ["custom/prod-db1/", "custom/prod-db1/*"]
+    error_message = "IAM must be scoped to the caller's prefix, not app-db/<agent>."
+  }
+
+  assert {
+    condition     = output.agents["opa1"].key_prefix == "custom/prod-db1"
+    error_message = "The output the app-db module consumes must carry the caller's prefix."
+  }
+
+  assert {
+    condition     = output.agents["opa10"].key_prefix == "app-db/opa10"
+    error_message = "An agent that names no prefix must keep the app-db/<agent> default."
+  }
+}
+
+run "overlapping_prefixes_are_rejected" {
+  command = plan
+
+  variables {
+    agents = {
+      opa1 = {
+        agent_tags = ["nonprod"]
+        key_prefix = "app-db/shared"
+        vpc_id     = "vpc-0123456789abcdef0"
+      }
+      opa10 = {
+        agent_tags = ["staging"]
+        key_prefix = "app-db/shared/nested"
+        vpc_id     = "vpc-0fedcba9876543210"
+      }
+    }
+  }
+
+  expect_failures = [var.agents]
+}
+
 run "kms_is_scoped_to_the_configured_key" {
   command = plan
 

@@ -92,13 +92,16 @@ locals {
 
   # ----------------------------------------------------------------
   # S3 state bucket ARN (always created, shared across all agents).
-  # Object keys are partitioned as app-db/<agent>/… so IAM can deny
-  # cross-agent state reads/writes even though the bucket is shared.
+  # Object keys are partitioned by each agent's key_prefix — app-db/<agent>
+  # unless the caller names one — so IAM can deny cross-agent state
+  # reads/writes even though the bucket is shared. This map is the single
+  # source of truth: it backs both the IAM statements below and the
+  # agents[].key_prefix output the app-db module consumes.
   # ----------------------------------------------------------------
   state_bucket_arn = aws_s3_bucket.tofu_state.arn
 
   agent_state_key_prefixes = {
-    for k in keys(var.agents) : k => "app-db/${k}"
+    for k, agent in var.agents : k => coalesce(agent.key_prefix, "app-db/${k}")
   }
 
   # ----------------------------------------------------------------
@@ -268,7 +271,7 @@ resource "aws_iam_policy" "lifecycle_worker_state_bucket" {
   for_each = var.agents
 
   name        = "${var.name_prefix}-${each.key}-state-bucket-${var.region}"
-  description = "Allows the ${each.key} lifecycle worker to read and write OpenTofu state under app-db/${each.key}/ in the shared S3 bucket."
+  description = "Allows the ${each.key} lifecycle worker to read and write OpenTofu state under ${local.agent_state_key_prefixes[each.key]}/ in the shared S3 bucket."
 
   policy = jsonencode({
     Version = "2012-10-17"

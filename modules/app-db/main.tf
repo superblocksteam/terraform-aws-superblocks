@@ -1,12 +1,6 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  # app-db-prereqs grants each lifecycle worker object access only under
-  # app-db/<agent_name>/. Derive the same prefix here so callers cannot pass a
-  # value that would plan cleanly and then fail every state read/write with
-  # AccessDenied at runtime.
-  key_prefix = "app-db/${var.agent_name}"
-
   # Module sources relative to the dispatch working directory. The OPA image
   # vendors these modules at fixed paths; this module pins those paths and does
   # not expose them as inputs. Operators who need a different source write their
@@ -117,7 +111,7 @@ locals {
   # logical backend key and module).
   logical_terraform = {
     backend = merge(local.s3_backend_base, {
-      key = "${local.key_prefix}/logical/{{profile}}/{{resource_key}}.tfstate"
+      key = "${var.key_prefix}/logical/{{profile}}/{{resource_key}}.tfstate"
     })
     moduleSelectors = {
       postgres = {
@@ -144,7 +138,7 @@ locals {
       backend = "terraform"
       terraform = {
         backend = merge(local.s3_backend_base, {
-          key = "${local.key_prefix}/physical/{{profile}}/{{resource_key}}.tfstate"
+          key = "${var.key_prefix}/physical/{{profile}}/{{resource_key}}.tfstate"
         })
         moduleSelectors = {
           postgres = {

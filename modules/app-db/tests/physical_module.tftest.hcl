@@ -15,6 +15,7 @@ variables {
   agent_name         = "opa1"
   agent_tags         = ["nonprod", "production"]
   connector_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-opa1-connector"
+  key_prefix         = "app-db/opa1"
   region             = "us-east-1"
   state_bucket_name  = "sb-app-db-us-east-1-123456789012"
 

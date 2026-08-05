@@ -7,7 +7,7 @@ output "agents" {
       lifecycle_worker_role_arn = local.agent_role_arns[k]
     }
   }
-  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), agent_tags (pass as agent_tags to the app-db module), and key_prefix (the IAM-backed state prefix app-db/<agent> — modules/app-db derives the same value from agent_name)."
+  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), agent_tags (pass as agent_tags to the app-db module), and key_prefix (the IAM-backed state prefix — pass as key_prefix to the app-db module; IAM grants state access under this prefix only)."
 }
 
 output "enhanced_monitoring_role_arn" {

@@ -18,6 +18,16 @@ variable "region" {
   }
 }
 
+variable "key_prefix" {
+  type        = string
+  description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Pass the app-db-prereqs module output agents[<agent_name>].key_prefix — that module's IAM grants the lifecycle worker access under that prefix only, so a hand-written value that differs fails every state read/write with AccessDenied. Override the prefix itself on the prereqs agents entry, not here. Logical database state lands under <key_prefix>/logical/{{profile}}/... and physical instance state under <key_prefix>/physical/{{profile}}/..."
+
+  validation {
+    condition     = length(var.key_prefix) > 0 && !startswith(var.key_prefix, "/") && !endswith(var.key_prefix, "/")
+    error_message = "key_prefix must be non-empty and must not start or end with a slash."
+  }
+}
+
 variable "agent_name" {
   type        = string
   description = "Stable name for this OPA deployment (the agents map key from app-db-prereqs, e.g. \"opa1\"). Used as the physical database pool identity. Must be unique within your AWS account and must not change once databases exist."

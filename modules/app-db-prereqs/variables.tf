@@ -26,9 +26,10 @@ variable "agents" {
     namespace              = optional(string, "superblocks")
     service_account_name   = optional(string, "superblocks-agent")
     existing_role_name     = optional(string)
+    key_prefix             = optional(string)
     rds_secret_kms_key_arn = optional(string)
   }))
-  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket per module invocation, with object access scoped to app-db/<agent>/."
+  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket per module invocation, with object access scoped to that agent's key_prefix (default app-db/<agent>). Pass agents[<name>].key_prefix into the app-db module — IAM grants state access under that prefix only."
 
   validation {
     condition     = length(var.agents) > 0
@@ -53,6 +54,35 @@ variable "agents" {
   validation {
     condition     = alltrue([for agent in values(var.agents) : can(regex("^vpc-[0-9a-f]+$", agent.vpc_id))])
     error_message = "Each agent's vpc_id must be a valid VPC ID (e.g. vpc-0123456789abcdef0)."
+  }
+
+  validation {
+    condition = alltrue([
+      for agent in values(var.agents) :
+      agent.key_prefix == null || (
+        length(agent.key_prefix) > 0 &&
+        !startswith(agent.key_prefix, "/") &&
+        !endswith(agent.key_prefix, "/")
+      )
+    ])
+    error_message = "Each agent's key_prefix must be non-empty and must not start or end with a slash."
+  }
+
+  # The state-bucket policy grants each worker s3:prefix <prefix>/ and
+  # <prefix>/*. Two agents sharing a prefix — or one nested under another —
+  # would hand each worker the other's state, which is the isolation this
+  # module exists to provide.
+  validation {
+    condition = alltrue([
+      for a, agent_a in var.agents : alltrue([
+        for b, agent_b in var.agents :
+        a == b ? true : !startswith(
+          "${coalesce(agent_b.key_prefix, "app-db/${b}")}/",
+          "${coalesce(agent_a.key_prefix, "app-db/${a}")}/"
+        )
+      ])
+    ])
+    error_message = "Agent key_prefixes must be disjoint: no two agents may share a prefix, and no prefix may nest under another."
   }
 }
 
