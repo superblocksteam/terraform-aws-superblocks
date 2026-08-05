@@ -333,8 +333,8 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_state_bucket" {
 #   - ManageMasterUserPassword: master password stored in Secrets Manager
 #     automatically (no plaintext credentials in state).
 #   - PubliclyAccessible: instances must remain VPC-private.
-#   - ManagedBy + Vpc request tags: resources must be tagged at creation
-#     so subsequent mutating-action conditions can scope to them.
+#   - AgentName + ManagedBy + Vpc request tags: resources must be tagged at
+#     creation so subsequent mutating-action conditions can scope to one OPA.
 # StorageEncrypted and DatabaseEngine are enforced via IAM condition keys on
 # create actions where AWS supports them (db* and cluster* resource types).
 # ----------------------------------------------------------------
@@ -399,6 +399,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
             "rds:StorageEncrypted"         = "true"
           }
           StringEquals = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
             "rds:DatabaseEngine"       = "postgres"
@@ -420,6 +421,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
             "rds:StorageEncrypted"         = "true"
           }
           StringEquals = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
             "rds:DatabaseEngine"       = "aurora-postgresql"
@@ -441,6 +443,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
             "rds:PubliclyAccessible" = "false"
           }
           StringEquals = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
             "rds:DatabaseEngine"       = "aurora-postgresql"
@@ -460,6 +463,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
         ]
         Condition = {
           StringEquals = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -472,6 +476,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
         Resource = local.rds_resources.subgrp
         Condition = {
           StringEquals = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -490,6 +495,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
         ]
         Condition = {
           StringEquals = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -505,6 +511,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
         ]
         Condition = {
           StringEqualsIfExists = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -580,6 +587,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
             "rds:ManageMasterUserPassword" = "true"
           }
           StringEquals = {
+            "aws:ResourceTag/AgentName" = each.key
             "aws:ResourceTag/ManagedBy" = local.managed_by_tag
             "aws:ResourceTag/Vpc"       = each.value.vpc_id
           }
@@ -592,6 +600,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         Resource = local.rds_resources.cluster_snapshot
         Condition = {
           StringEqualsIfExists = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -604,6 +613,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         Resource = local.rds_resources.cluster
         Condition = {
           StringEquals = {
+            "aws:ResourceTag/AgentName" = each.key
             "aws:ResourceTag/ManagedBy" = local.managed_by_tag
             "aws:ResourceTag/Vpc"       = each.value.vpc_id
           }
@@ -616,6 +626,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         Resource = local.rds_resources.cluster_snapshot
         Condition = {
           StringEqualsIfExists = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -628,6 +639,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         Resource = local.rds_resources.db
         Condition = {
           StringEquals = {
+            "aws:ResourceTag/AgentName" = each.key
             "aws:ResourceTag/ManagedBy" = local.managed_by_tag
             "aws:ResourceTag/Vpc"       = each.value.vpc_id
           }
@@ -640,6 +652,7 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         Resource = local.rds_resources.snapshot
         Condition = {
           StringEqualsIfExists = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -661,10 +674,12 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         ]
         Condition = {
           StringEquals = {
+            "aws:ResourceTag/AgentName" = each.key
             "aws:ResourceTag/ManagedBy" = local.managed_by_tag
             "aws:ResourceTag/Vpc"       = each.value.vpc_id
           }
           StringEqualsIfExists = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -686,11 +701,12 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         ]
         Condition = {
           StringEquals = {
+            "aws:ResourceTag/AgentName" = each.key
             "aws:ResourceTag/ManagedBy" = local.managed_by_tag
             "aws:ResourceTag/Vpc"       = each.value.vpc_id
           }
           "ForAllValues:StringNotEquals" = {
-            "aws:TagKeys" = ["ManagedBy", "Vpc"]
+            "aws:TagKeys" = ["AgentName", "ManagedBy", "Vpc"]
           }
         }
       },
@@ -741,6 +757,7 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           Resource = "${local.ec2_prefix}:security-group/*"
           Condition = {
             StringEquals = {
+              "aws:RequestTag/AgentName" = each.key
               "aws:RequestTag/ManagedBy" = local.managed_by_tag
               "aws:RequestTag/Vpc"       = each.value.vpc_id
             }
@@ -760,6 +777,7 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           Resource = "*"
           Condition = {
             StringEquals = {
+              "aws:ResourceTag/AgentName" = each.key
               "aws:ResourceTag/ManagedBy" = local.managed_by_tag
               "aws:ResourceTag/Vpc"       = each.value.vpc_id
             }
@@ -775,6 +793,7 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           ]
           Condition = {
             StringEquals = {
+              "aws:RequestTag/AgentName" = each.key
               "aws:RequestTag/ManagedBy" = local.managed_by_tag
               "aws:RequestTag/Vpc"       = each.value.vpc_id
               "ec2:CreateAction"         = "CreateSecurityGroup"
@@ -791,10 +810,12 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           ]
           Condition = {
             StringEquals = {
+              "aws:ResourceTag/AgentName" = each.key
               "aws:ResourceTag/ManagedBy" = local.managed_by_tag
               "aws:ResourceTag/Vpc"       = each.value.vpc_id
             }
             StringEqualsIfExists = {
+              "aws:RequestTag/AgentName" = each.key
               "aws:RequestTag/ManagedBy" = local.managed_by_tag
               "aws:RequestTag/Vpc"       = each.value.vpc_id
             }
@@ -810,11 +831,12 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           ]
           Condition = {
             StringEquals = {
+              "aws:ResourceTag/AgentName" = each.key
               "aws:ResourceTag/ManagedBy" = local.managed_by_tag
               "aws:ResourceTag/Vpc"       = each.value.vpc_id
             }
             "ForAllValues:StringNotEquals" = {
-              "aws:TagKeys" = ["ManagedBy", "Vpc"]
+              "aws:TagKeys" = ["AgentName", "ManagedBy", "Vpc"]
             }
           }
         },
@@ -855,6 +877,7 @@ resource "aws_iam_policy" "lifecycle_worker_secrets" {
             "aws:CalledVia" = "rds.amazonaws.com"
           }
           StringEquals = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -873,6 +896,7 @@ resource "aws_iam_policy" "lifecycle_worker_secrets" {
             "aws:CalledVia" = "rds.amazonaws.com"
           }
           StringEquals = {
+            "aws:RequestTag/AgentName" = each.key
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
@@ -902,6 +926,7 @@ resource "aws_iam_policy" "lifecycle_worker_secrets" {
         ]
         Condition = {
           StringEquals = {
+            "aws:ResourceTag/AgentName" = each.key
             "aws:ResourceTag/ManagedBy" = local.managed_by_tag
             "aws:ResourceTag/Vpc"       = each.value.vpc_id
           }
