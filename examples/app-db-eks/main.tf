@@ -93,7 +93,7 @@ module "app_db_prereqs" {
 
 output "agents" {
   value       = module.app_db_prereqs.agents
-  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (annotate the OPA service account via eks.amazonaws.com/role-arn) and connector_role_arn (pass to OPA Helm chart as SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN)."
+  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (annotate the OPA service account via eks.amazonaws.com/role-arn) and connector_role_arn (pass to OPA Helm chart as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN)."
 }
 
 output "enhanced_monitoring_role_arn" {
