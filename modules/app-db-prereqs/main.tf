@@ -1085,7 +1085,7 @@ resource "aws_iam_policy" "connector" {
     Version = "2012-10-17"
     Statement = [
       for tag in each.value.agent_tags : {
-        Sid    = "ConnectTag${replace(replace(title(tag), "-", ""), "_", "")}"
+        Sid    = "ConnectTag${regexreplace(title(tag), "[^A-Za-z0-9]", "")}"
         Effect = "Allow"
         Action = "rds-db:connect"
         Resource = [
