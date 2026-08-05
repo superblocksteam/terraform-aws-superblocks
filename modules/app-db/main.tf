@@ -208,7 +208,7 @@ locals {
       value = var.agent_name
     },
     {
-      name  = "SUPERBLOCKS_NATIVE_DB_CONNECTOR_ROLE_ARN"
+      name  = "SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN"
       value = var.connector_role_arn
     },
     {
