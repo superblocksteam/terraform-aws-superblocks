@@ -1,7 +1,6 @@
-# Which physical database a caller gets, and which capacity arguments reach it.
-# Aurora Serverless v2 is what a caller gets without asking; Aurora provisioned
-# and standalone RDS are opt-in. Each physical module rejects the other's
-# capacity arguments, so a mode must never forward the other mode's inputs.
+# Physical inputs that remain customer-configurable during the App Databases
+# beta. Capacity and engine selection are covered by database_infrastructure
+# contract tests; this file verifies the retained operational inputs.
 
 mock_provider "aws" {
   mock_data "aws_caller_identity" {
@@ -22,11 +21,12 @@ variables {
   physical_module_inputs = {
     monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
     subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+    tags                = { Environment = "production" }
     vpc_id              = "vpc-0123456789abcdef0"
   }
 }
 
-run "a_caller_that_names_no_capacity_gets_aurora_serverless" {
+run "supported_physical_inputs_reach_aurora" {
   command = plan
 
   assert {
@@ -34,95 +34,15 @@ run "a_caller_that_names_no_capacity_gets_aurora_serverless" {
       for env in output.ecs_env_vars : env.value
       if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
     ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.source == "./modules/aws-aurora-managed-cluster"
-    error_message = "The default physical module must be the Aurora cluster, not standalone RDS."
-  }
-
-  assert {
-    condition = can(jsondecode([
-      for env in output.ecs_env_vars : env.value
-      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs.deployment.serverless_v2)
-    error_message = "An omitted deployment must still ask Aurora for Serverless v2 capacity."
-  }
-
-  assert {
-    condition = !contains(keys(jsondecode([
-      for env in output.ecs_env_vars : env.value
-      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs), "allocated_storage")
-    error_message = "Aurora has no allocated_storage variable; forwarding it fails the plan with Unsupported argument."
-  }
-
-  assert {
-    condition = [
-      for env in output.ecs_env_vars : env.value
-      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_ALLOWED_MODULE_SOURCES"
-    ][0] == "./modules/postgres-managed-database,./modules/aws-aurora-managed-cluster"
-    error_message = "The module-source allowlist must name the physical module this OPA actually dispatches."
-  }
-}
-
-run "a_caller_can_ask_aurora_for_provisioned_instances" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      deployment = {
-        provisioned = {
-          instance_class = "db.r6g.xlarge"
-          instance_count = 3
-        }
-      }
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
-    }
+    error_message = "The App Databases beta must use the Aurora physical module."
   }
 
   assert {
     condition = jsondecode([
       for env in output.ecs_env_vars : env.value
       if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.source == "./modules/aws-aurora-managed-cluster"
-    error_message = "Provisioned capacity is an Aurora deployment shape, so it must still select the Aurora module."
-  }
-
-  assert {
-    condition = jsondecode([
-      for env in output.ecs_env_vars : env.value
-      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs.deployment.provisioned.instance_class == "db.r6g.xlarge"
-    error_message = "A provisioned instance class must reach the Aurora module unchanged."
-  }
-}
-
-run "a_caller_can_ask_for_standalone_rds_by_sizing_an_instance" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      allocated_storage   = 100
-      instance_class      = "db.t4g.medium"
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
-    }
-  }
-
-  assert {
-    condition = jsondecode([
-      for env in output.ecs_env_vars : env.value
-      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.source == "./modules/aws-rds-managed-instance"
-    error_message = "Instance sizing is RDS-only, so it must select the RDS instance module."
-  }
-
-  assert {
-    condition = jsondecode([
-      for env in output.ecs_env_vars : env.value
-      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs.allocated_storage == 100
-    error_message = "Allocated storage must reach the RDS module unchanged."
+    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs.tags.Environment == "production"
+    error_message = "Supported physical module tags must reach Aurora unchanged."
   }
 
   assert {
@@ -130,87 +50,22 @@ run "a_caller_can_ask_for_standalone_rds_by_sizing_an_instance" {
       for env in output.ecs_env_vars : env.value
       if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
     ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs), "deployment")
-    error_message = "RDS has no deployment variable; forwarding it fails the plan with Unsupported argument."
+    error_message = "Low-level Aurora deployment settings must not reach the shared physical module."
   }
 
   assert {
     condition = [
       for env in output.ecs_env_vars : env.value
       if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_ALLOWED_MODULE_SOURCES"
-    ][0] == "./modules/postgres-managed-database,./modules/aws-rds-managed-instance"
-    error_message = "The module-source allowlist must follow the selected physical module."
+    ][0] == "./modules/postgres-managed-database,./modules/aws-aurora-managed-cluster"
+    error_message = "The module-source allowlist must contain the fixed Aurora physical module."
   }
 }
 
-run "an_rds_instance_needs_both_sizing_inputs" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      instance_class      = "db.t4g.medium"
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
-    }
-  }
-
-  expect_failures = [var.physical_module_inputs]
-}
-
-run "aurora_capacity_and_rds_sizing_cannot_be_combined" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      allocated_storage   = 100
-      deployment          = { serverless_v2 = { max_acu = 8 } }
-      instance_class      = "db.t4g.medium"
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
-    }
-  }
-
-  expect_failures = [var.physical_module_inputs]
-}
-
-run "an_aurora_deployment_names_exactly_one_capacity_shape" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      deployment = {
-        provisioned   = { instance_class = "db.r6g.large" }
-        serverless_v2 = { max_acu = 8 }
-      }
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
-    }
-  }
-
-  expect_failures = [var.physical_module_inputs]
-}
-
-run "an_empty_aurora_deployment_is_rejected_rather_than_silently_defaulted" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      deployment          = {}
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
-    }
-  }
-
-  expect_failures = [var.physical_module_inputs]
-}
-
-# Both physical modules default monitoring_interval to 60 and reject that
+# The physical module defaults monitoring_interval to 60 and rejects that
 # without a role, so the rendered inputs have to carry the pair or no database
 # ever provisions.
-run "enhanced_monitoring_reaches_both_physical_modules" {
+run "enhanced_monitoring_reaches_the_physical_module" {
   command = plan
 
   assert {
@@ -237,22 +92,6 @@ run "enhanced_monitoring_without_a_role_is_rejected_here_not_inside_the_worker" 
     physical_module_inputs = {
       subnet_ids = ["subnet-0000000000000001", "subnet-0000000000000002"]
       vpc_id     = "vpc-0123456789abcdef0"
-    }
-  }
-
-  expect_failures = [var.physical_module_inputs]
-}
-
-run "allocated_storage_must_be_positive" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      allocated_storage   = 0
-      instance_class      = "db.t4g.medium"
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
     }
   }
 
@@ -308,37 +147,4 @@ run "agent_name_rejects_underscores" {
   }
 
   expect_failures = [var.agent_name]
-}
-
-run "multi_az_alone_cannot_select_rds" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      multi_az            = true
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
-    }
-  }
-
-  expect_failures = [var.physical_module_inputs]
-}
-
-run "deployment_and_multi_az_cannot_be_combined" {
-  command = plan
-
-  variables {
-    physical_module_inputs = {
-      deployment = {
-        serverless_v2 = {}
-      }
-      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-      multi_az            = true
-      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-      vpc_id              = "vpc-0123456789abcdef0"
-    }
-  }
-
-  expect_failures = [var.physical_module_inputs]
 }

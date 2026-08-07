@@ -60,6 +60,27 @@ terraform init
 terraform apply
 ```
 
+### App Databases beta database infrastructure
+
+The Fargate App Databases module always provisions Aurora Serverless v2 during beta. Its customer-facing database infrastructure configuration currently exposes one setting:
+
+```terraform
+module "app_databases" {
+  source = "superblocksteam/superblocks/aws//modules/app-db"
+
+  # Other required App Databases inputs omitted.
+  database_infrastructure = {
+    scale_to_zero = false
+  }
+}
+```
+
+`scale_to_zero` defaults to `false`, which keeps database capacity available when idle. Set it to `true` only when idle suspension and cold-resume latency are acceptable. Low-level Aurora capacity configuration and standalone RDS selection are not supported during beta; `physical_module_inputs` continues to accept networking, monitoring, tags, backup, and security settings.
+
+> **Warning:** Changing `scale_to_zero` after App Databases have been provisioned does not update existing physical databases automatically. Contact Superblocks Support to update existing databases and avoid mixed configurations.
+
+The generated lifecycle configuration requires an OPA image that vendors the shared physical module's `database_infrastructure` input. See [`examples/app-db-fargate`](./examples/app-db-fargate/main.tf) for the complete Fargate configuration and image pin guidance. EKS deployments use the equivalent Helm value `databaseLifecycle.databaseInfrastructure.scaleToZero`; see [`examples/app-db-eks`](./examples/app-db-eks/main.tf) for prerequisite wiring.
+
 ### Advanced Configuration
 
 #### Public Networking

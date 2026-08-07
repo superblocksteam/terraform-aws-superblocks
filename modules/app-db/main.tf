@@ -7,20 +7,10 @@ locals {
   # own SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG instead of using this module.
   logical_module_source = "./modules/postgres-managed-database"
 
-  # Aurora is the default physical engine, so a caller who states only where the
-  # database goes gets a Serverless v2 cluster. Standalone RDS is opt-in through
-  # the instance-sizing inputs, which Aurora does not accept; the variable's
-  # validation requires them together and forbids mixing them with deployment.
-  rds_selected = (
-    var.physical_module_inputs.allocated_storage != null ||
-    var.physical_module_inputs.instance_class != null
-  )
-
-  physical_module_source = (
-    local.rds_selected
-    ? "./modules/aws-rds-managed-instance"
-    : "./modules/aws-aurora-managed-cluster"
-  )
+  # App Databases beta always provisions Aurora Serverless v2. The shared leaf
+  # module owns the effective capacity defaults and translates the supported
+  # database_infrastructure controls into provider-specific settings.
+  physical_module_source = "./modules/aws-aurora-managed-cluster"
 
   # SSL cert path baked into the Superblocks OPA image.
   ssl_root_cert = "/etc/ssl/certs/aws-rds-global-bundle.pem"
@@ -41,12 +31,15 @@ locals {
     use_lockfile = true
   }
 
-  # Physical inputs both modules accept. publicly_accessible is always false —
-  # the lifecycle worker IAM policy enforces this at create time regardless of
-  # module input.
-  physical_inputs_shared = {
+  # Physical module inputs forwarded to ensure_physical_database_instance.
+  # publicly_accessible is always false — the lifecycle worker IAM policy
+  # enforces this at create time regardless of module input. Capacity settings
+  # are deliberately absent during beta; the leaf module owns all fixed Aurora
+  # Serverless v2 settings.
+  physical_inputs = {
     allowed_cidr_blocks       = var.physical_module_inputs.allowed_cidr_blocks
     backup_retention_period   = var.physical_module_inputs.backup_retention_period
+    database_infrastructure   = var.database_infrastructure
     delete_automated_backups  = var.physical_module_inputs.delete_automated_backups
     deletion_protection       = var.physical_module_inputs.deletion_protection
     monitoring_interval       = var.physical_module_inputs.monitoring_interval
@@ -58,38 +51,6 @@ locals {
     tags                      = var.physical_module_inputs.tags
     vpc_id                    = var.physical_module_inputs.vpc_id
   }
-
-  # An omitted deployment forwards an empty serverless_v2 object so the Aurora
-  # module applies its own Serverless v2 defaults rather than this module
-  # restating a capacity range it would then have to keep in sync.
-  aurora_deployment_json = (
-    var.physical_module_inputs.deployment == null
-    ? jsonencode({ serverless_v2 = {} })
-    : jsonencode(var.physical_module_inputs.deployment)
-  )
-
-  # Aurora and RDS take disjoint capacity arguments and each fails the plan with
-  # "Unsupported argument" on the other's, so only the selected set is
-  # forwarded. The chosen set round-trips through JSON because a conditional
-  # between the two object types would unify them and silently drop keys.
-  physical_inputs_json = (
-    local.rds_selected
-    ? jsonencode(merge(local.physical_inputs_shared,
-      {
-        allocated_storage = var.physical_module_inputs.allocated_storage
-        instance_class    = var.physical_module_inputs.instance_class
-      },
-      # An unstated multi_az is dropped rather than forwarded as null so the RDS
-      # module's own default governs it.
-      { for name, value in { multi_az = var.physical_module_inputs.multi_az } : name => value if value != null },
-    ))
-    : jsonencode(merge(local.physical_inputs_shared, {
-      deployment = jsondecode(local.aurora_deployment_json)
-    }))
-  )
-
-  # Physical module inputs forwarded to ensure_physical_database_instance.
-  physical_inputs = jsondecode(local.physical_inputs_json)
 
   # Logical module inputs shared by ensure_database and retire_database.
   #
@@ -165,9 +126,11 @@ locals {
   # once as agent tags, and the worker rejects a profiles key here outright so
   # the two can never disagree.
   #
-  # Requires OPA image v1.46.0 or later. Older images still expect an `entries`
-  # array and exit at startup with "database lifecycle config entries are
-  # required". Pin superblocks_agent_image when wiring ecs_env_vars into the
+  # Requires an OPA image that supports the flat lifecycle configuration
+  # (v1.46.0 or later) and vendors a physical module with the
+  # database_infrastructure input. Older images either reject this document at
+  # startup or fail physical provisioning with an unsupported module argument.
+  # Pin a compatible superblocks_agent_image when wiring ecs_env_vars into the
   # root module (see examples/app-db-fargate).
   lifecycle_config = {
     engines    = ["postgres"]

@@ -82,12 +82,19 @@ module "app_db_prereqs" {
   }
 }
 
-# Wire enhanced_monitoring_role_arn into the OPA Helm chart so physical
-# modules can attach Enhanced Monitoring (default monitoring_interval is 60).
-# Without this, plans fail the module precondition even though the IAM role
-# exists:
+# Configure the same App Databases beta database infrastructure concept used by
+# Fargate Terraform in the OPA Helm chart. Keep scaleToZero false for persistent
+# capacity, or set it to true when idle suspension and cold-resume latency are
+# acceptable. Also wire enhanced_monitoring_role_arn so the physical module can
+# attach Enhanced Monitoring (default monitoring_interval is 60).
+#
+# WARNING: Changing scaleToZero after App Databases have been provisioned does
+# not update existing physical databases automatically. Contact Superblocks
+# Support to update existing databases and avoid mixed configurations.
 #
 #   databaseLifecycle:
+#     databaseInfrastructure:
+#       scaleToZero: false
 #     physicalModuleInputs:
 #       monitoring_role_arn: <module.app_db_prereqs.enhanced_monitoring_role_arn>
 #
