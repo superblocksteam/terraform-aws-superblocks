@@ -11,9 +11,10 @@ provider "aws" {
 # in Step 3 below into your existing terraform-aws-superblocks module block
 # (including the superblocks_agent_image pin).
 #
-# IMPORTANT: pin superblocks_agent_image to v1.46.0 or later. modules/app-db
-# emits the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG shape that older images
-# reject at startup with "database lifecycle config entries are required".
+# IMPORTANT: pin superblocks_agent_image to a release that supports the flat
+# SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG shape (v1.46.0 or later) and vendors the
+# physical module database_infrastructure input. An image missing either
+# contract rejects the lifecycle config or fails physical provisioning.
 #
 # IMPORTANT: set existing_role_name (in the agents block below) to your
 # current ECS task role name so app-db-prereqs attaches its policies to
@@ -129,34 +130,19 @@ module "app_db_opa1" {
   # granted; override the value on the agents entry above, never here.
   key_prefix = module.app_db_prereqs.agents["opa1"].key_prefix
 
+  # App Databases beta uses Aurora Serverless v2. Keep false for persistent
+  # capacity, or set true when idle suspension and cold-resume latency are
+  # acceptable.
+  #
+  # WARNING: Changing scale_to_zero after App Databases have been provisioned
+  # does not update existing physical databases automatically. Contact
+  # Superblocks Support to update existing databases and avoid mixed
+  # configurations.
+  database_infrastructure = {
+    scale_to_zero = false
+  }
+
   physical_module_inputs = {
-    # Aurora Serverless v2 is the default: capacity scales between min_acu and
-    # max_acu with no instance class to size. Omit `deployment` entirely to
-    # accept the module defaults, or state the range you want. instance_count
-    # = 2 keeps a second warm instance for immediate failover.
-    #
-    # min_acu = 0 lets a cluster pause when idle. Use it for nonprod, not
-    # production.
-    deployment = {
-      serverless_v2 = {
-        instance_count = 2
-        max_acu        = 32
-        min_acu        = 2
-      }
-    }
-
-    # Aurora with fixed instances instead of Serverless v2:
-    # deployment = {
-    #   provisioned = {
-    #     instance_class = "db.r6g.large"
-    #     instance_count = 2
-    #   }
-    # }
-
-    # Standalone RDS instead of an Aurora cluster (omit deployment above):
-    # allocated_storage = 100
-    # instance_class    = "db.t4g.medium"
-
     vpc_id = "vpc-0123456789abcdef0"
 
     # Subnets in at least two Availability Zones — required by the DB subnet group.
@@ -205,9 +191,10 @@ module "superblocks_opa1" {
   ecs_subnet_ids        = ["subnet-0000000000000001", "subnet-0000000000000002"]
   lb_subnet_ids         = ["subnet-0000000000000001", "subnet-0000000000000002"]
 
-  # App DB requires OPA v1.46.0+. The untagged default image may be older and
-  # will exit on the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG this module emits.
-  superblocks_agent_image = "ghcr.io/superblocksteam/agent:v1.46.0"
+  # App Databases requires an OPA image with the flat lifecycle configuration
+  # and physical module database_infrastructure contracts. Replace this
+  # placeholder with the compatible release supplied by Superblocks.
+  superblocks_agent_image = "ghcr.io/superblocksteam/agent:<APP_DATABASES_COMPATIBLE_VERSION>"
 
   # App DB additions — wire these in from the modules above.
   superblocks_agent_tags                  = module.app_db_opa1.superblocks_agent_tags
@@ -223,6 +210,11 @@ module "superblocks_opa1" {
 output "agents" {
   value       = module.app_db_prereqs.agents
   description = "Per-agent outputs: lifecycle_worker_role_arn (set as the ECS task role ARN), connector_role_arn, and agent_tags."
+}
+
+output "app_databases_database_infrastructure_notice" {
+  value       = module.app_db_opa1.database_infrastructure_notice
+  description = "Apply-visible warning for App Databases database infrastructure changes."
 }
 
 output "enhanced_monitoring_role_arn" {

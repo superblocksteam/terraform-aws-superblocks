@@ -69,25 +69,26 @@ variable "pool" {
   }
 }
 
+variable "database_infrastructure" {
+  type = object({
+    scale_to_zero = optional(bool, false)
+  })
+  default     = {}
+  description = <<-EOT
+    App Databases beta database infrastructure configuration. scale_to_zero defaults to false so Aurora Serverless v2 capacity remains available when idle. Set it to true only when idle suspension and cold-resume latency are acceptable.
+
+    WARNING: Changing scale_to_zero after App Databases have been provisioned does not update existing physical databases automatically. Contact Superblocks Support to update existing databases and avoid mixed configurations.
+  EOT
+}
+
 variable "physical_module_inputs" {
   type = object({
-    allocated_storage        = optional(number)
-    allowed_cidr_blocks      = optional(list(string), [])
-    backup_retention_period  = optional(number, 7)
-    delete_automated_backups = optional(bool, false)
-    deletion_protection      = optional(bool, true)
-    deployment = optional(object({
-      provisioned = optional(object({
-        instance_class = optional(string, "db.r6g.large")
-        instance_count = optional(number, 2)
-      }))
-      serverless_v2 = optional(object({
-        auto_pause_seconds = optional(number, 300)
-        instance_count     = optional(number, 1)
-        max_acu            = optional(number, 16)
-        min_acu            = optional(number, 0)
-      }))
-    }))
+    allocated_storage         = optional(number)
+    allowed_cidr_blocks       = optional(list(string), [])
+    backup_retention_period   = optional(number, 7)
+    delete_automated_backups  = optional(bool, false)
+    deletion_protection       = optional(bool, true)
+    deployment                = optional(any)
     instance_class            = optional(string)
     monitoring_interval       = optional(number, 60)
     monitoring_role_arn       = optional(string)
@@ -99,15 +100,13 @@ variable "physical_module_inputs" {
     vpc_id                    = string
   })
   description = <<-EOT
-    Physical database configuration applied to every database this OPA provisions.
-
-    Aurora PostgreSQL is the default. Leaving `deployment` unset provisions Aurora Serverless v2, which scales between a floor and ceiling of Aurora Capacity Units with no instance class to pick. Set `deployment.serverless_v2` to choose that range, or `deployment.provisioned` to run fixed instances instead. `min_acu = 0` lets a cluster pause when idle — appropriate for nonprod, not production.
-
-    Standalone RDS is opt-in: set `allocated_storage` and `instance_class` (and optionally `multi_az`) instead of `deployment`. Aurora manages storage and failover itself and accepts none of those three.
+    Networking, monitoring, tags, backup, and security configuration applied to every physical database this OPA provisions.
 
     publicly_accessible is always false and is not configurable — the lifecycle worker IAM policy enforces it regardless.
 
     Enhanced Monitoring is on at a 60 second interval, which RDS only accepts alongside an IAM role it can assume. Pass the prerequisite stack's `enhanced_monitoring_role_arn` output as `monitoring_role_arn`, or set `monitoring_interval = 0` to turn Enhanced Monitoring off.
+
+    App Databases beta always provisions Aurora Serverless v2. Low-level Aurora capacity configuration through `deployment`, and standalone RDS selection through `allocated_storage`, `instance_class`, or `multi_az`, are not supported. Use `database_infrastructure.scale_to_zero` for the supported beta lifecycle control.
   EOT
 
   validation {
@@ -120,43 +119,12 @@ variable "physical_module_inputs" {
 
   validation {
     condition = (
-      (var.physical_module_inputs.allocated_storage == null) ==
-      (var.physical_module_inputs.instance_class == null)
-    )
-    error_message = "physical_module_inputs.allocated_storage and instance_class select standalone RDS and must be set together. Omit both to provision Aurora."
-  }
-
-  validation {
-    condition = (
-      var.physical_module_inputs.multi_az == null ||
-      (
-        var.physical_module_inputs.allocated_storage != null &&
-        var.physical_module_inputs.instance_class != null
-      )
-    )
-    error_message = "physical_module_inputs.multi_az is an RDS-only option and must be set together with allocated_storage and instance_class. Omit multi_az to provision Aurora."
-  }
-
-  validation {
-    condition = var.physical_module_inputs.deployment == null || (
       var.physical_module_inputs.allocated_storage == null &&
+      var.physical_module_inputs.deployment == null &&
       var.physical_module_inputs.instance_class == null &&
       var.physical_module_inputs.multi_az == null
     )
-    error_message = "physical_module_inputs.deployment configures Aurora capacity and cannot be combined with the standalone RDS inputs allocated_storage, instance_class, or multi_az."
-  }
-
-  validation {
-    condition = var.physical_module_inputs.deployment == null || (
-      (var.physical_module_inputs.deployment.provisioned == null ? 0 : 1) +
-      (var.physical_module_inputs.deployment.serverless_v2 == null ? 0 : 1)
-    ) == 1
-    error_message = "physical_module_inputs.deployment must configure exactly one of provisioned or serverless_v2. Omit deployment entirely to accept the Serverless v2 default."
-  }
-
-  validation {
-    condition     = var.physical_module_inputs.allocated_storage == null || try(var.physical_module_inputs.allocated_storage > 0, false)
-    error_message = "physical_module_inputs.allocated_storage must be a positive integer."
+    error_message = "App Databases beta always uses Aurora Serverless v2. Do not set physical_module_inputs.deployment, allocated_storage, instance_class, or multi_az; use database_infrastructure.scale_to_zero for the supported beta lifecycle control."
   }
 
   validation {
