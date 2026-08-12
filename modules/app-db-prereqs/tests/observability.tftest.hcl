@@ -111,7 +111,6 @@ run "grants_app_database_observability_permissions" {
         "logs:ListTagsForResource",
         "logs:PutRetentionPolicy",
         "logs:TagResource",
-        "logs:UntagResource",
       ] :
       contains(one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
@@ -119,6 +118,46 @@ run "grants_app_database_observability_permissions" {
       ]), action)
     ])
     error_message = "The worker must be able to manage the log groups the physical modules declare explicitly."
+  }
+
+  assert {
+    condition = !contains(one([
+      for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+      try(tolist(statement.Action), [statement.Action]) if statement.Sid == "CloudWatchLogGroupsForAppDatabases"
+    ]), "logs:UntagResource")
+    error_message = "UntagResource must not sit in the unconditional CloudWatch allow — protected keys need Allow-with-exclusion plus Deny."
+  }
+
+  assert {
+    condition = (
+      one([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+        statement.Action if statement.Sid == "CloudWatchUntagExceptProtectedTags"
+      ]) == "logs:UntagResource" &&
+      toset(one([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+        statement.Condition["ForAllValues:StringNotEquals"]["aws:TagKeys"] if statement.Sid == "CloudWatchUntagExceptProtectedTags"
+      ])) == toset(["AgentName", "ManagedBy", "Vpc", "aws-apn-id", "superblocks:owned"])
+    )
+    error_message = "CloudWatch UntagResource Allow must exclude the protected tag keys."
+  }
+
+  assert {
+    condition = (
+      one([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+        statement.Effect if statement.Sid == "DenyUntagProtectedTags"
+      ]) == "Deny" &&
+      one([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+        statement.Action if statement.Sid == "DenyUntagProtectedTags"
+      ]) == "logs:UntagResource" &&
+      toset(one([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+        statement.Condition["ForAnyValue:StringEquals"]["aws:TagKeys"] if statement.Sid == "DenyUntagProtectedTags"
+      ])) == toset(["AgentName", "ManagedBy", "Vpc", "aws-apn-id", "superblocks:owned"])
+    )
+    error_message = "CloudWatch must Deny untagging protected keys via DenyUntagProtectedTags."
   }
 
   assert {

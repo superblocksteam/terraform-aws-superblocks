@@ -101,7 +101,76 @@ run "the_tags_output_matches_what_the_module_stamps" {
   }
 
   assert {
-    condition     = output.tags == { Environment = "production", ManagedBy = "superblocks-app-database-lifecycle" }
-    error_message = "The tags output must merge ManagedBy over the caller's tags."
+    condition = output.tags == {
+      "Environment"       = "production"
+      "ManagedBy"         = "superblocks-app-database-lifecycle"
+      "aws-apn-id"        = "pc:ctelqp437y3cvjkv5rv0z2w4f"
+      "superblocks:owned" = "true"
+    }
+    error_message = "The tags output must merge ManagedBy and the ownership pair over the caller's tags."
+  }
+}
+
+# Ownership and AWS Partner Network attribution is mandatory on every resource
+# Superblocks creates in a customer account, so a caller must not be able to
+# drop or reassign either key by passing its own value.
+run "ownership_tags_cannot_be_overridden_by_the_caller" {
+  command = plan
+
+  variables {
+    tags = {
+      "aws-apn-id"        = "pc:someoneelse"
+      "superblocks:owned" = "false"
+    }
+  }
+
+  assert {
+    condition = output.tags == {
+      "ManagedBy"         = "superblocks-app-database-lifecycle"
+      "aws-apn-id"        = "pc:ctelqp437y3cvjkv5rv0z2w4f"
+      "superblocks:owned" = "true"
+    }
+    error_message = "The module must override caller-supplied ownership tags with its own values."
+  }
+}
+
+# Every taggable resource this module creates carries the tags — an untagged IAM
+# policy or bucket is invisible to ownership and APN reporting.
+run "every_taggable_resource_carries_the_tags" {
+  command = plan
+
+  assert {
+    condition = alltrue(flatten([
+      for name in keys(var.agents) : [
+        for tags in [
+          aws_iam_policy.connector[name].tags,
+          aws_iam_policy.lifecycle_worker_assume_connector[name].tags,
+          aws_iam_policy.lifecycle_worker_ec2_provisioning[name].tags,
+          aws_iam_policy.lifecycle_worker_observability[name].tags,
+          aws_iam_policy.lifecycle_worker_rds_mutation[name].tags,
+          aws_iam_policy.lifecycle_worker_rds_provisioning[name].tags,
+          aws_iam_policy.lifecycle_worker_secrets[name].tags,
+          aws_iam_policy.lifecycle_worker_state_bucket[name].tags,
+          aws_iam_role.connector[name].tags,
+          aws_iam_role.lifecycle_worker[name].tags,
+          ] : [
+          tags["superblocks:owned"] == "true",
+          tags["aws-apn-id"] == "pc:ctelqp437y3cvjkv5rv0z2w4f",
+          tags["ManagedBy"] == "superblocks-app-database-lifecycle",
+        ]
+      ]
+    ]))
+    error_message = "Every IAM role and policy this module creates must carry the ownership pair and ManagedBy."
+  }
+
+  assert {
+    condition = alltrue([
+      for tags in [aws_iam_role.enhanced_monitoring[0].tags, aws_s3_bucket.tofu_state.tags] : (
+        tags["superblocks:owned"] == "true" &&
+        tags["aws-apn-id"] == "pc:ctelqp437y3cvjkv5rv0z2w4f" &&
+        tags["ManagedBy"] == "superblocks-app-database-lifecycle"
+      )
+    ])
+    error_message = "The Enhanced Monitoring role and the state bucket must carry the ownership pair and ManagedBy."
   }
 }

@@ -41,9 +41,24 @@ locals {
     use_lockfile = true
   }
 
+  # Ownership and AWS Partner Network attribution, mandatory on every AWS
+  # resource Superblocks creates in a customer account. The databases the worker
+  # provisions at runtime inherit no provider default_tags — the worker runs tofu
+  # against the module inputs rendered here — so the pair is merged over the
+  # caller's tags rather than defaulted into them. app-db-prereqs stamps the same
+  # two keys on the prerequisite resources and denies the worker permission to
+  # strip them afterwards.
+  ownership_tags = {
+    "aws-apn-id"        = "pc:ctelqp437y3cvjkv5rv0z2w4f"
+    "superblocks:owned" = "true"
+  }
+
   # Physical inputs both modules accept. publicly_accessible is always false —
   # the lifecycle worker IAM policy enforces this at create time regardless of
   # module input.
+  #
+  # ManagedBy, AgentName, and Vpc are absent here on purpose: the worker stamps
+  # those per resource, and its IAM requires them on every create.
   physical_inputs_shared = {
     allowed_cidr_blocks       = var.physical_module_inputs.allowed_cidr_blocks
     backup_retention_period   = var.physical_module_inputs.backup_retention_period
@@ -55,7 +70,7 @@ locals {
     skip_final_snapshot       = var.physical_module_inputs.skip_final_snapshot
     source_security_group_ids = var.physical_module_inputs.source_security_group_ids
     subnet_ids                = var.physical_module_inputs.subnet_ids
-    tags                      = var.physical_module_inputs.tags
+    tags                      = merge(var.physical_module_inputs.tags, local.ownership_tags)
     vpc_id                    = var.physical_module_inputs.vpc_id
   }
 

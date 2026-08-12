@@ -125,5 +125,5 @@ variable "existing_monitoring_role_arn" {
 variable "tags" {
   type        = map(string)
   default     = {}
-  description = "Additional tags to apply to all resources created by this module. Do not set ManagedBy — the module always enforces ManagedBy = \"superblocks-app-database-lifecycle\", which is required for IAM conditions that scope the lifecycle worker's blast radius."
+  description = "Additional tags to apply to all resources created by this module. Three keys are reserved and always overridden: ManagedBy = \"superblocks-app-database-lifecycle\", which the IAM conditions that scope the lifecycle worker's blast radius depend on, plus superblocks:owned = \"true\" and aws-apn-id, the ownership and AWS Partner Network attribution required on every Superblocks-created resource."
 }

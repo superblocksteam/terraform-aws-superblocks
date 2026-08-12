@@ -310,6 +310,46 @@ run "agent_name_rejects_underscores" {
   expect_failures = [var.agent_name]
 }
 
+# Databases the worker provisions at runtime inherit no provider default_tags,
+# so the ownership pair has to travel in the rendered module inputs — for every
+# OPA, whether or not the caller passes tags of its own.
+run "ownership_tags_reach_the_physical_module_without_the_caller_asking" {
+  command = plan
+
+  assert {
+    condition = jsonencode(jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs.tags) == jsonencode({ "aws-apn-id" = "pc:ctelqp437y3cvjkv5rv0z2w4f", "superblocks:owned" = "true" })
+    error_message = "Every OPA must tag the databases it provisions with the ownership pair, even when the caller passes no tags."
+  }
+}
+
+run "caller_tags_are_kept_but_cannot_override_the_ownership_pair" {
+  command = plan
+
+  variables {
+    physical_module_inputs = {
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
+      tags = {
+        "Environment"       = "production"
+        "aws-apn-id"        = "pc:someoneelse"
+        "superblocks:owned" = "false"
+      }
+    }
+  }
+
+  assert {
+    condition = jsonencode(jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_physical_database_instance.terraform.moduleSelectors.postgres.inputs.tags) == jsonencode({ "Environment" = "production", "aws-apn-id" = "pc:ctelqp437y3cvjkv5rv0z2w4f", "superblocks:owned" = "true" })
+    error_message = "Caller tags must survive, but the ownership pair must win over caller-supplied values."
+  }
+}
+
 run "multi_az_alone_cannot_select_rds" {
   command = plan
 

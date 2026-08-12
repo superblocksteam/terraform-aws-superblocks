@@ -113,13 +113,70 @@ run "lifecycle_policies_require_matching_agent_name" {
         for policy in [
           jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy),
           jsondecode(aws_iam_policy.lifecycle_worker_rds_mutation[name].policy),
+          jsondecode(aws_iam_policy.lifecycle_worker_observability[name].policy),
           ] : toset(one([
             for statement in policy.Statement :
             statement.Condition["ForAllValues:StringNotEquals"]["aws:TagKeys"]
             if try(statement.Condition["ForAllValues:StringNotEquals"]["aws:TagKeys"], null) != null
-        ])) == toset(["AgentName", "ManagedBy", "Vpc"])
+        ])) == toset(["AgentName", "ManagedBy", "Vpc", "aws-apn-id", "superblocks:owned"])
       ])
     ])
-    error_message = "Workers must not be allowed to remove AgentName or the other IAM scoping tags from managed resources."
+    error_message = "Workers must not be allowed to remove AgentName, the other IAM scoping tags, or the ownership pair from managed resources (including CloudWatch log groups)."
+  }
+
+  assert {
+    condition = alltrue([
+      for name in keys(var.agents) : alltrue([
+        length([
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_rds_mutation[name].policy).Statement : statement
+          if try(statement.Sid, null) == "DenyRemoveProtectedTags" &&
+          try(statement.Effect, null) == "Deny" &&
+          try(statement.Action, null) == "rds:RemoveTagsFromResource" &&
+          try(toset(statement.Condition["ForAnyValue:StringEquals"]["aws:TagKeys"]), null) == toset(["AgentName", "ManagedBy", "Vpc", "aws-apn-id", "superblocks:owned"])
+        ]) == 1,
+        length([
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : statement
+          if try(statement.Sid, null) == "DenyDeleteProtectedTags" &&
+          try(statement.Effect, null) == "Deny" &&
+          contains(try(tolist(statement.Action), [statement.Action]), "ec2:DeleteTags") &&
+          try(statement.Condition.StringEquals["aws:ResourceTag/AgentName"], null) == name &&
+          try(statement.Condition.StringEquals["aws:ResourceTag/ManagedBy"], null) == "superblocks-app-database-lifecycle" &&
+          try(statement.Condition.StringEquals["aws:ResourceTag/Vpc"], null) == var.agents[name].vpc_id &&
+          try(toset(statement.Condition["ForAnyValue:StringEquals"]["aws:TagKeys"]), null) == toset(["AgentName", "ManagedBy", "Vpc", "aws-apn-id", "superblocks:owned"])
+        ]) == 1,
+        length([
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability[name].policy).Statement : statement
+          if try(statement.Sid, null) == "DenyUntagProtectedTags" &&
+          try(statement.Effect, null) == "Deny" &&
+          try(statement.Action, null) == "logs:UntagResource" &&
+          try(toset(statement.Condition["ForAnyValue:StringEquals"]["aws:TagKeys"]), null) == toset(["AgentName", "ManagedBy", "Vpc", "aws-apn-id", "superblocks:owned"])
+        ]) == 1,
+      ])
+    ])
+    error_message = "RDS, EC2, and CloudWatch mutation policies must Deny removing protected tag keys via named Sids; EC2 Deny must also require this agent's ResourceTag scope."
+  }
+
+  assert {
+    condition = alltrue([
+      for name in keys(var.agents) : alltrue([
+        try(one([
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_rds_mutation[name].policy).Statement :
+          statement.Condition.StringEqualsIfExists if try(statement.Sid, null) == "RdsAddTagsToManagedResources"
+          ])["aws:RequestTag/superblocks:owned"], null) == "true",
+        try(one([
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_rds_mutation[name].policy).Statement :
+          statement.Condition.StringEqualsIfExists if try(statement.Sid, null) == "RdsAddTagsToManagedResources"
+          ])["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f",
+        try(one([
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement :
+          statement.Condition.StringEqualsIfExists if try(statement.Sid, null) == "Ec2CreateTagsOnManagedResources"
+          ])["aws:RequestTag/superblocks:owned"], null) == "true",
+        try(one([
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement :
+          statement.Condition.StringEqualsIfExists if try(statement.Sid, null) == "Ec2CreateTagsOnManagedResources"
+          ])["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f",
+      ])
+    ])
+    error_message = "When the worker writes ownership tags via AddTags/CreateTags, IAM must require the canonical values (StringEqualsIfExists)."
   }
 }
