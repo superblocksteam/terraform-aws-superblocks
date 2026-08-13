@@ -156,27 +156,62 @@ run "lifecycle_policies_require_matching_agent_name" {
     error_message = "RDS, EC2, and CloudWatch mutation policies must Deny removing protected tag keys via named Sids; EC2 Deny must also require this agent's ResourceTag scope."
   }
 
+  # AWS DeleteTags with no Tags parameter clears every user tag and omits
+  # aws:TagKeys. ForAllValues:StringNotEquals then evaluates true (vacuous)
+  # while ForAnyValue:StringEquals does not match — so protected-key Deny alone
+  # is not enough. Require TagKeys to be present on the Allow, and Deny when it
+  # is absent, both scoped to this agent's resources.
   assert {
     condition = alltrue([
       for name in keys(var.agents) : alltrue([
         try(one([
-          for statement in jsondecode(aws_iam_policy.lifecycle_worker_rds_mutation[name].policy).Statement :
-          statement.Condition.StringEqualsIfExists if try(statement.Sid, null) == "RdsAddTagsToManagedResources"
-          ])["aws:RequestTag/superblocks:owned"], null) == "true",
-        try(one([
-          for statement in jsondecode(aws_iam_policy.lifecycle_worker_rds_mutation[name].policy).Statement :
-          statement.Condition.StringEqualsIfExists if try(statement.Sid, null) == "RdsAddTagsToManagedResources"
-          ])["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f",
-        try(one([
           for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement :
-          statement.Condition.StringEqualsIfExists if try(statement.Sid, null) == "Ec2CreateTagsOnManagedResources"
-          ])["aws:RequestTag/superblocks:owned"], null) == "true",
-        try(one([
-          for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement :
-          statement.Condition.StringEqualsIfExists if try(statement.Sid, null) == "Ec2CreateTagsOnManagedResources"
-          ])["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f",
+          statement.Condition.Null if try(statement.Sid, null) == "Ec2DeleteTagsExceptProtectedTags"
+          ])["aws:TagKeys"], null) == "false",
+        length([
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : statement
+          if try(statement.Sid, null) == "DenyDeleteTagsWhenTagKeysAbsent" &&
+          try(statement.Effect, null) == "Deny" &&
+          contains(try(tolist(statement.Action), [statement.Action]), "ec2:DeleteTags") &&
+          try(statement.Condition.StringEquals["aws:ResourceTag/AgentName"], null) == name &&
+          try(statement.Condition.StringEquals["aws:ResourceTag/ManagedBy"], null) == "superblocks-app-database-lifecycle" &&
+          try(statement.Condition.StringEquals["aws:ResourceTag/Vpc"], null) == var.agents[name].vpc_id &&
+          try(statement.Condition.Null["aws:TagKeys"], null) == "true"
+        ]) == 1,
       ])
     ])
-    error_message = "When the worker writes ownership tags via AddTags/CreateTags, IAM must require the canonical values (StringEqualsIfExists)."
+    error_message = "EC2 DeleteTags must Deny the delete-all request (missing aws:TagKeys) and the Allow must require TagKeys to be present."
+  }
+
+  # Every AddTags/CreateTags/TagResource Allow that can write ownership keys must
+  # require the canonical values when those keys appear in the request. Checking
+  # only one Sid leaves overlapping Allows that IAM ORs as a bypass.
+  assert {
+    condition = alltrue([
+      for name in keys(var.agents) : alltrue(flatten([
+        [
+          for statement in concat(
+            jsondecode(aws_iam_policy.lifecycle_worker_rds_provisioning[name].policy).Statement,
+            jsondecode(aws_iam_policy.lifecycle_worker_rds_mutation[name].policy).Statement,
+            ) : (
+            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
+            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
+            ) if contains(try(tolist(statement.Action), [statement.Action]), "rds:AddTagsToResource")
+        ],
+        [
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : (
+            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
+            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
+            ) if contains(try(tolist(statement.Action), [statement.Action]), "ec2:CreateTags")
+        ],
+        [
+          for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability[name].policy).Statement : (
+            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
+            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
+            ) if contains(try(tolist(statement.Action), [statement.Action]), "logs:TagResource")
+        ],
+      ]))
+    ])
+    error_message = "Every AddTags/CreateTags/TagResource Allow must require canonical ownership values via StringEqualsIfExists — overlapping Allows must not bypass the check."
   }
 }

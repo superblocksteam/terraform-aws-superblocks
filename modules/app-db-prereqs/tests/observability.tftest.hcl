@@ -110,7 +110,6 @@ run "grants_app_database_observability_permissions" {
         "logs:DeleteLogGroup",
         "logs:ListTagsForResource",
         "logs:PutRetentionPolicy",
-        "logs:TagResource",
       ] :
       contains(one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
@@ -126,6 +125,32 @@ run "grants_app_database_observability_permissions" {
       try(tolist(statement.Action), [statement.Action]) if statement.Sid == "CloudWatchLogGroupsForAppDatabases"
     ]), "logs:UntagResource")
     error_message = "UntagResource must not sit in the unconditional CloudWatch allow — protected keys need Allow-with-exclusion plus Deny."
+  }
+
+  assert {
+    condition = !contains(one([
+      for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+      try(tolist(statement.Action), [statement.Action]) if statement.Sid == "CloudWatchLogGroupsForAppDatabases"
+    ]), "logs:TagResource")
+    error_message = "TagResource must not sit in the unconditional CloudWatch allow — ownership request-tag values need StringEqualsIfExists."
+  }
+
+  assert {
+    condition = (
+      one([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+        statement.Action if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
+      ]) == "logs:TagResource" &&
+      try(one([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+        statement.Condition.StringEqualsIfExists if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
+        ])["aws:RequestTag/superblocks:owned"], null) == "true" &&
+      try(one([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
+        statement.Condition.StringEqualsIfExists if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
+        ])["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
+    )
+    error_message = "CloudWatch TagResource Allow must require canonical ownership values via StringEqualsIfExists."
   }
 
   assert {
