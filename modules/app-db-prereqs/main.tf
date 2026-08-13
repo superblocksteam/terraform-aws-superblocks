@@ -45,7 +45,24 @@ locals {
   # Tagging
   # ----------------------------------------------------------------
   managed_by_tag = "superblocks-app-database-lifecycle"
-  tags           = merge(var.tags, { ManagedBy = local.managed_by_tag })
+
+  # Ownership and AWS Partner Network attribution, mandatory on every AWS
+  # resource Superblocks creates in a customer account. They are merged over
+  # var.tags rather than defaulted into it so no caller can drop them, and the
+  # same pair is applied to the runtime databases by the app-db module.
+  ownership_tags = {
+    "aws-apn-id"        = "pc:ctelqp437y3cvjkv5rv0z2w4f"
+    "superblocks:owned" = "true"
+  }
+
+  tags = merge(var.tags, local.ownership_tags, { ManagedBy = local.managed_by_tag })
+
+  # Tag keys the worker may never strip from a resource it manages: the three
+  # keys every mutating-action condition scopes on, plus the ownership pair the
+  # app-db module stamps on the databases themselves. Removing any of them would
+  # either orphan the resource from the worker's own permissions or erase the
+  # attribution this module exists to guarantee.
+  protected_tag_keys = concat(["AgentName", "ManagedBy", "Vpc"], keys(local.ownership_tags))
 
   # ----------------------------------------------------------------
   # RDS and EC2 ARN helpers (region + account scoped, not agent scoped)
@@ -252,6 +269,8 @@ resource "aws_iam_policy" "lifecycle_worker_assume_connector" {
       }
     ]
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "lifecycle_worker_assume_connector" {
@@ -318,6 +337,8 @@ resource "aws_iam_policy" "lifecycle_worker_state_bucket" {
       local.state_bucket_kms_statement != null ? [local.state_bucket_kms_statement] : []
     )
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "lifecycle_worker_state_bucket" {
@@ -499,6 +520,13 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
             "aws:RequestTag/ManagedBy" = local.managed_by_tag
             "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
+          # Ownership values when present must be canonical. Without this,
+          # RdsTagOnCreate ORs with RdsAddTagsToManagedResources and bypasses
+          # the mutation-policy ownership check on the same action/resources.
+          StringEqualsIfExists = {
+            "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
+            "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
+          }
         }
       },
       {
@@ -511,9 +539,11 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
         ]
         Condition = {
           StringEqualsIfExists = {
-            "aws:RequestTag/AgentName" = each.key
-            "aws:RequestTag/ManagedBy" = local.managed_by_tag
-            "aws:RequestTag/Vpc"       = each.value.vpc_id
+            "aws:RequestTag/AgentName"         = each.key
+            "aws:RequestTag/ManagedBy"         = local.managed_by_tag
+            "aws:RequestTag/Vpc"               = each.value.vpc_id
+            "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
+            "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
           }
         }
       },
@@ -535,6 +565,8 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
       },
     ]
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "lifecycle_worker_rds_provisioning" {
@@ -679,14 +711,16 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
             "aws:ResourceTag/Vpc"       = each.value.vpc_id
           }
           StringEqualsIfExists = {
-            "aws:RequestTag/AgentName" = each.key
-            "aws:RequestTag/ManagedBy" = local.managed_by_tag
-            "aws:RequestTag/Vpc"       = each.value.vpc_id
+            "aws:RequestTag/AgentName"         = each.key
+            "aws:RequestTag/ManagedBy"         = local.managed_by_tag
+            "aws:RequestTag/Vpc"               = each.value.vpc_id
+            "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
+            "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
           }
         }
       },
       {
-        Sid    = "RdsRemoveTagsExceptScopingTags"
+        Sid    = "RdsRemoveTagsExceptProtectedTags"
         Effect = "Allow"
         Action = "rds:RemoveTagsFromResource"
         Resource = [
@@ -706,12 +740,36 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
             "aws:ResourceTag/Vpc"       = each.value.vpc_id
           }
           "ForAllValues:StringNotEquals" = {
-            "aws:TagKeys" = ["AgentName", "ManagedBy", "Vpc"]
+            "aws:TagKeys" = local.protected_tag_keys
+          }
+        }
+      },
+      {
+        # Explicit Deny so stripping scoping/ownership tags fails closed with a
+        # named Sid in IAM diagnostics, not only an unmatched Allow.
+        Sid    = "DenyRemoveProtectedTags"
+        Effect = "Deny"
+        Action = "rds:RemoveTagsFromResource"
+        Resource = [
+          local.rds_resources.cluster,
+          local.rds_resources.cluster_pg,
+          local.rds_resources.cluster_snapshot,
+          local.rds_resources.db,
+          local.rds_resources.pg_sb,
+          local.rds_resources.pg_all,
+          local.rds_resources.snapshot,
+          local.rds_resources.subgrp,
+        ]
+        Condition = {
+          "ForAnyValue:StringEquals" = {
+            "aws:TagKeys" = local.protected_tag_keys
           }
         }
       },
     ]
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "lifecycle_worker_rds_mutation" {
@@ -798,6 +856,13 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
               "aws:RequestTag/Vpc"       = each.value.vpc_id
               "ec2:CreateAction"         = "CreateSecurityGroup"
             }
+            # Same overlapping-Allow bypass as RdsTagOnCreate: without this,
+            # CreateTags on create can write non-canonical ownership values
+            # even though Ec2CreateTagsOnManagedResources checks them.
+            StringEqualsIfExists = {
+              "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
+              "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
+            }
           }
         },
         {
@@ -815,14 +880,16 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
               "aws:ResourceTag/Vpc"       = each.value.vpc_id
             }
             StringEqualsIfExists = {
-              "aws:RequestTag/AgentName" = each.key
-              "aws:RequestTag/ManagedBy" = local.managed_by_tag
-              "aws:RequestTag/Vpc"       = each.value.vpc_id
+              "aws:RequestTag/AgentName"         = each.key
+              "aws:RequestTag/ManagedBy"         = local.managed_by_tag
+              "aws:RequestTag/Vpc"               = each.value.vpc_id
+              "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
+              "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
             }
           }
         },
         {
-          Sid    = "Ec2DeleteTagsExceptScopingTags"
+          Sid    = "Ec2DeleteTagsExceptProtectedTags"
           Effect = "Allow"
           Action = ["ec2:DeleteTags"]
           Resource = [
@@ -835,8 +902,60 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
               "aws:ResourceTag/ManagedBy" = local.managed_by_tag
               "aws:ResourceTag/Vpc"       = each.value.vpc_id
             }
+            # TagKeys must be present: a DeleteTags call with no Tags parameter
+            # clears every user tag and omits aws:TagKeys, which makes
+            # ForAllValues:StringNotEquals evaluate true (vacuous truth).
+            Null = {
+              "aws:TagKeys" = "false"
+            }
             "ForAllValues:StringNotEquals" = {
-              "aws:TagKeys" = ["AgentName", "ManagedBy", "Vpc"]
+              "aws:TagKeys" = local.protected_tag_keys
+            }
+          }
+        },
+        {
+          # Explicit Deny so stripping scoping/ownership tags fails closed with a
+          # named Sid in IAM diagnostics, not only an unmatched Allow. Scoped to
+          # this agent's ManagedBy/AgentName/Vpc resources so attaching these
+          # policies via existing_role_name cannot Deny DeleteTags on unrelated
+          # security groups in the same account/region.
+          Sid    = "DenyDeleteProtectedTags"
+          Effect = "Deny"
+          Action = ["ec2:DeleteTags"]
+          Resource = [
+            "${local.ec2_prefix}:security-group/*",
+            "${local.ec2_prefix}:security-group-rule/*",
+          ]
+          Condition = {
+            StringEquals = {
+              "aws:ResourceTag/AgentName" = each.key
+              "aws:ResourceTag/ManagedBy" = local.managed_by_tag
+              "aws:ResourceTag/Vpc"       = each.value.vpc_id
+            }
+            "ForAnyValue:StringEquals" = {
+              "aws:TagKeys" = local.protected_tag_keys
+            }
+          }
+        },
+        {
+          # DeleteTags with no Tags parameter clears every user-defined tag and
+          # omits aws:TagKeys from the request context. ForAnyValue:StringEquals
+          # then does not match DenyDeleteProtectedTags, so fail closed here.
+          Sid    = "DenyDeleteTagsWhenTagKeysAbsent"
+          Effect = "Deny"
+          Action = ["ec2:DeleteTags"]
+          Resource = [
+            "${local.ec2_prefix}:security-group/*",
+            "${local.ec2_prefix}:security-group-rule/*",
+          ]
+          Condition = {
+            StringEquals = {
+              "aws:ResourceTag/AgentName" = each.key
+              "aws:ResourceTag/ManagedBy" = local.managed_by_tag
+              "aws:ResourceTag/Vpc"       = each.value.vpc_id
+            }
+            Null = {
+              "aws:TagKeys" = "true"
             }
           }
         },
@@ -844,6 +963,8 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
       local.agent_ec2_create_sg_vpc_statements[each.key]
     )
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "lifecycle_worker_ec2_provisioning" {
@@ -935,6 +1056,8 @@ resource "aws_iam_policy" "lifecycle_worker_secrets" {
       local.agent_rds_secret_kms_statements[each.key],
     ]
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "lifecycle_worker_secrets" {
@@ -969,10 +1092,47 @@ resource "aws_iam_policy" "lifecycle_worker_observability" {
           "logs:DeleteLogGroup",
           "logs:ListTagsForResource",
           "logs:PutRetentionPolicy",
-          "logs:TagResource",
-          "logs:UntagResource",
         ]
         Resource = local.app_db_cloudwatch_log_group_arn_patterns
+      },
+      {
+        # TagResource is split out so ownership request-tag values can be
+        # constrained. Leaving it unconditional next to CreateLogGroup would
+        # let the worker overwrite superblocks:owned / aws-apn-id.
+        Sid      = "CloudWatchTagResourceWithCanonicalOwnership"
+        Effect   = "Allow"
+        Action   = "logs:TagResource"
+        Resource = local.app_db_cloudwatch_log_group_arn_patterns
+        Condition = {
+          StringEqualsIfExists = {
+            "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
+            "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
+          }
+        }
+      },
+      {
+        Sid      = "CloudWatchUntagExceptProtectedTags"
+        Effect   = "Allow"
+        Action   = "logs:UntagResource"
+        Resource = local.app_db_cloudwatch_log_group_arn_patterns
+        Condition = {
+          "ForAllValues:StringNotEquals" = {
+            "aws:TagKeys" = local.protected_tag_keys
+          }
+        }
+      },
+      {
+        # Explicit Deny so stripping ownership/scoping tags from App DB log
+        # groups fails closed with a named Sid, matching RDS/EC2 tag removal.
+        Sid      = "DenyUntagProtectedTags"
+        Effect   = "Deny"
+        Action   = "logs:UntagResource"
+        Resource = local.app_db_cloudwatch_log_group_arn_patterns
+        Condition = {
+          "ForAnyValue:StringEquals" = {
+            "aws:TagKeys" = local.protected_tag_keys
+          }
+        }
       },
       # The provider reads aws_cloudwatch_log_group through DescribeLogGroups,
       # which AWS authorizes only against "*" — an iam:SimulateCustomPolicy run
@@ -1002,6 +1162,8 @@ resource "aws_iam_policy" "lifecycle_worker_observability" {
       },
     ]
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "lifecycle_worker_observability" {
@@ -1120,6 +1282,8 @@ resource "aws_iam_policy" "connector" {
       }
     ]
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy_attachment" "connector" {

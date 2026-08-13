@@ -76,7 +76,9 @@ module "app_db_prereqs" {
   # from the first instead of creating another copy.
   # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
 
-  # Optional: additional tags applied to all resources created by this module.
+  # Optional: additional inventory tags applied to all resources created by this module.
+  # Do not set ManagedBy, superblocks:owned, or aws-apn-id — app-db-prereqs always
+  # enforces those reserved keys (see output "tags").
   tags = {
     Environment = "production"
   }
@@ -85,13 +87,16 @@ module "app_db_prereqs" {
 # Wire enhanced_monitoring_role_arn into the OPA Helm chart so physical
 # modules can attach Enhanced Monitoring (default monitoring_interval is 60).
 # Without this, plans fail the module precondition even though the IAM role
-# exists:
+# exists. Also pass tags into databaseLifecycle.physicalModuleTags so runtime
+# Aurora carries ManagedBy, superblocks:owned, and aws-apn-id (the Helm chart
+# does not inject the ownership pair by default):
 #
 #   databaseLifecycle:
+#     physicalModuleTags: <module.app_db_prereqs.tags>
 #     physicalModuleInputs:
 #       monitoring_role_arn: <module.app_db_prereqs.enhanced_monitoring_role_arn>
 #
-# Or opt out with monitoring_interval: 0.
+# Or opt out of Enhanced Monitoring with monitoring_interval: 0.
 
 output "agents" {
   value       = module.app_db_prereqs.agents
@@ -106,4 +111,9 @@ output "enhanced_monitoring_role_arn" {
 output "state_bucket_name" {
   value       = module.app_db_prereqs.state_bucket_name
   description = "S3 bucket used by the OPA lifecycle workers to store OpenTofu state."
+}
+
+output "tags" {
+  value       = module.app_db_prereqs.tags
+  description = "Pass to OPA Helm as databaseLifecycle.physicalModuleTags so runtime Aurora/RDS carry ManagedBy, superblocks:owned, and aws-apn-id. The Helm chart does not inject the ownership pair by default."
 }

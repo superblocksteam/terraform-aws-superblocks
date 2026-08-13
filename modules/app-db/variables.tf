@@ -107,6 +107,8 @@ variable "physical_module_inputs" {
 
     publicly_accessible is always false and is not configurable — the lifecycle worker IAM policy enforces it regardless.
 
+    `tags` are applied to every database, security group, and parameter group the OPA provisions. The ownership pair `superblocks:owned = "true"` and `aws-apn-id` is always merged over whatever you pass, and the lifecycle worker adds the `ManagedBy`, `AgentName`, and `Vpc` tags its own IAM conditions require.
+
     Enhanced Monitoring is on at a 60 second interval, which RDS only accepts alongside an IAM role it can assume. Pass the prerequisite stack's `enhanced_monitoring_role_arn` output as `monitoring_role_arn`, or set `monitoring_interval = 0` to turn Enhanced Monitoring off.
   EOT
 

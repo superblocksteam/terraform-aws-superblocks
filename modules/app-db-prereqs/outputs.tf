@@ -22,5 +22,5 @@ output "state_bucket_name" {
 
 output "tags" {
   value       = local.tags
-  description = "Tags applied to all resources created by this module. Pass to the app-db module's physical_module_inputs.tags to tag RDS instances with the same values."
+  description = "Tags applied to all resources created by this module, including the reserved ManagedBy, superblocks:owned, and aws-apn-id keys. Pass to the app-db module's physical_module_inputs.tags (or databaseLifecycle.physicalModuleTags) so runtime App DB resources carry the same values; app-db also re-enforces the ownership pair independently."
 }
