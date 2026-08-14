@@ -214,4 +214,20 @@ run "lifecycle_policies_require_matching_agent_name" {
     ])
     error_message = "Every AddTags/CreateTags/TagResource Allow must require canonical ownership values via StringEqualsIfExists — overlapping Allows must not bypass the check."
   }
+
+  assert {
+    condition = alltrue([
+      for name in keys(var.agents) : alltrue([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : (
+          statement.Sid != "Ec2CreateTagsOnCreateSecurityGroup" ||
+          toset(try(tolist(statement.Condition.StringEquals["ec2:CreateAction"]), [statement.Condition.StringEquals["ec2:CreateAction"]])) == toset([
+            "AuthorizeSecurityGroupEgress",
+            "AuthorizeSecurityGroupIngress",
+            "CreateSecurityGroup",
+          ])
+        )
+      ])
+    ])
+    error_message = "Create-time EC2 tagging must authorize security-group and security-group-rule creates (CreateSecurityGroup plus AuthorizeSecurityGroupIngress/Egress)."
+  }
 }
