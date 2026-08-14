@@ -82,11 +82,11 @@ module "app_db_prereqs" {
     # }
   }
 
-  # Optional: override the default resource name prefix ("sb-app-db").
-  # IAM roles are named <name_prefix>-<agent_name>-*; the S3 state bucket is
-  # named <name_prefix>-<region>-<account_id>.
-  # Max 16 characters. Only needed when your org enforces a naming convention.
-  # name_prefix = "acme-app-db"
+  # Optional: override IAM and S3 name prefixes independently (both default
+  # to "sb-app-db") when your organization requires different naming for
+  # IAM roles/policies vs the OpenTofu state bucket. Max 16 characters each.
+  # iam_name_prefix = "acme-app-db"
+  # s3_name_prefix  = "acme-state"
 
   # Optional: customer-managed KMS key for the OpenTofu state bucket.
   # When omitted, the bucket uses AWS account-default encryption (SSE-S3) and
@@ -95,7 +95,7 @@ module "app_db_prereqs" {
 
   # Optional: reuse an account-level Enhanced Monitoring role created by a
   # prior regional apply of this module. The role name is account-scoped
-  # (<name_prefix>-enhanced-monitoring), so a second region must pass the ARN
+  # (<iam_name_prefix>-enhanced-monitoring), so a second region must pass the ARN
   # from the first instead of creating another copy.
   # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
 
