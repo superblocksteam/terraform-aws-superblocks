@@ -94,14 +94,25 @@ variable "agents" {
   }
 }
 
-variable "name_prefix" {
+variable "iam_name_prefix" {
   type        = string
   default     = "sb-app-db"
-  description = "Prefix applied to all IAM roles, policies, and the S3 state bucket created by this module. Defaults to 'sb-app-db'. Override when your organization requires a specific naming convention. Max 16 characters (combined with region (≤14) and account ID (12) the bucket name stays under S3's 63-character limit)."
+  description = "Prefix applied to IAM roles and policies created by this module. Defaults to 'sb-app-db'. Max 16 lowercase alphanumeric characters or hyphens."
 
   validation {
-    condition     = can(regex("^[a-z0-9][a-z0-9-]{0,14}[a-z0-9]$", var.name_prefix))
-    error_message = "Variable name_prefix must be 2-16 lowercase alphanumeric characters or hyphens, and must not start or end with a hyphen."
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,14}[a-z0-9])?$", var.iam_name_prefix))
+    error_message = "Variable iam_name_prefix must be 1-16 lowercase alphanumeric characters or hyphens, and must not start or end with a hyphen."
+  }
+}
+
+variable "s3_name_prefix" {
+  type        = string
+  default     = "sb-app-db"
+  description = "Prefix applied to the OpenTofu state bucket created by this module. Defaults to 'sb-app-db'. Max 16 lowercase alphanumeric characters or hyphens."
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,14}[a-z0-9])?$", var.s3_name_prefix))
+    error_message = "Variable s3_name_prefix must be 1-16 lowercase alphanumeric characters or hyphens, and must not start or end with a hyphen."
   }
 }
 
@@ -114,7 +125,7 @@ variable "kms_key_arn" {
 variable "existing_monitoring_role_arn" {
   type        = string
   default     = null
-  description = "ARN of an existing account-level RDS Enhanced Monitoring role. When null, the module creates <name_prefix>-enhanced-monitoring. Set this in additional regions so every worker reuses one shared role instead of creating a second copy. The physical database modules take this ARN as monitoring_role_arn; the worker is granted iam:PassRole on it and nothing else. Setting this on a deployment that previously created the role destroys that role: any database still configured with the old ARN loses Enhanced Monitoring until the physical modules are re-pointed at the role you supply here, so re-point them first."
+  description = "ARN of an existing account-level RDS Enhanced Monitoring role. When null, the module creates <iam_name_prefix>-enhanced-monitoring. Set this in additional regions so every worker reuses one shared role instead of creating a second copy. The physical database modules take this ARN as monitoring_role_arn; the worker is granted iam:PassRole on it and nothing else. Setting this on a deployment that previously created the role destroys that role: any database still configured with the old ARN loses Enhanced Monitoring until the physical modules are re-pointed at the role you supply here, so re-point them first."
 
   validation {
     condition     = var.existing_monitoring_role_arn == null || can(regex("^arn:aws:iam::[0-9]{12}:role/([A-Za-z0-9+=,.@_-]+/)*[A-Za-z0-9+=,.@_-]+$", var.existing_monitoring_role_arn))

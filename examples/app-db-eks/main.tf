@@ -64,15 +64,18 @@ module "app_db_prereqs" {
     # }
   }
 
-  # Optional: override the default resource name prefix ("sb-app-db").
-  # name_prefix = "acme-app-db"
+  # Optional: override IAM and S3 name prefixes independently (both default
+  # to "sb-app-db") when your organization requires different naming for
+  # IAM roles/policies vs the OpenTofu state bucket.
+  # iam_name_prefix = "acme-app-db"
+  # s3_name_prefix  = "acme-state"
 
   # Optional: customer-managed KMS key for the OpenTofu state bucket.
   # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
 
   # Optional: reuse an account-level Enhanced Monitoring role created by a
   # prior regional apply of this module. The role name is account-scoped
-  # (<name_prefix>-enhanced-monitoring), so a second region must pass the ARN
+  # (<iam_name_prefix>-enhanced-monitoring), so a second region must pass the ARN
   # from the first instead of creating another copy.
   # existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
 

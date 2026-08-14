@@ -243,7 +243,7 @@ locals {
 resource "aws_iam_role" "lifecycle_worker" {
   for_each = { for k, agent in var.agents : k => agent if agent.existing_role_name == null }
 
-  name               = "${var.name_prefix}-${each.key}-lifecycle-worker-${var.region}"
+  name               = "${var.iam_name_prefix}-${each.key}-lifecycle-worker-${var.region}"
   assume_role_policy = local.lifecycle_worker_assume_role_policies[each.key]
 
   tags = local.tags
@@ -255,7 +255,7 @@ resource "aws_iam_role" "lifecycle_worker" {
 resource "aws_iam_policy" "lifecycle_worker_assume_connector" {
   for_each = var.agents
 
-  name        = "${var.name_prefix}-${each.key}-assume-connector"
+  name        = "${var.iam_name_prefix}-${each.key}-assume-connector"
   description = "Allows the ${each.key} lifecycle worker to assume its connector role for RDS IAM authentication."
 
   policy = jsonencode({
@@ -289,7 +289,7 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_assume_connector" {
 resource "aws_iam_policy" "lifecycle_worker_state_bucket" {
   for_each = var.agents
 
-  name        = "${var.name_prefix}-${each.key}-state-bucket-${var.region}"
+  name        = "${var.iam_name_prefix}-${each.key}-state-bucket-${var.region}"
   description = "Allows the ${each.key} lifecycle worker to read and write OpenTofu state under ${local.agent_state_key_prefixes[each.key]}/ in the shared S3 bucket."
 
   policy = jsonencode({
@@ -362,7 +362,7 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_state_bucket" {
 resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
   for_each = var.agents
 
-  name        = "${var.name_prefix}-${each.key}-rds-provisioning-${var.region}"
+  name        = "${var.iam_name_prefix}-${each.key}-rds-provisioning-${var.region}"
   description = "Allows the ${each.key} lifecycle worker to describe and provision RDS/Aurora instances and clusters."
 
   policy = jsonencode({
@@ -581,7 +581,7 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_rds_provisioning" {
 resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
   for_each = var.agents
 
-  name        = "${var.name_prefix}-${each.key}-rds-mutation-${var.region}"
+  name        = "${var.iam_name_prefix}-${each.key}-rds-mutation-${var.region}"
   description = "Allows the ${each.key} lifecycle worker to modify, delete, snapshot, and tag RDS/Aurora resources it owns."
 
   policy = jsonencode({
@@ -784,7 +784,7 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_rds_mutation" {
 resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
   for_each = var.agents
 
-  name        = "${var.name_prefix}-${each.key}-ec2-provisioning-${var.region}"
+  name        = "${var.iam_name_prefix}-${each.key}-ec2-provisioning-${var.region}"
   description = "Allows the ${each.key} lifecycle worker to describe VPCs and manage security groups it created."
 
   policy = jsonencode({
@@ -979,7 +979,7 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_ec2_provisioning" {
 resource "aws_iam_policy" "lifecycle_worker_secrets" {
   for_each = var.agents
 
-  name        = "${var.name_prefix}-${each.key}-secrets-${var.region}"
+  name        = "${var.iam_name_prefix}-${each.key}-secrets-${var.region}"
   description = "Allows the ${each.key} lifecycle worker to manage RDS master credentials and read RDS-managed secrets."
 
   policy = jsonencode({
@@ -1078,7 +1078,7 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_secrets" {
 resource "aws_iam_policy" "lifecycle_worker_observability" {
   for_each = var.agents
 
-  name        = "${var.name_prefix}-${each.key}-observability-${var.region}"
+  name        = "${var.iam_name_prefix}-${each.key}-observability-${var.region}"
   description = "Allows the ${each.key} lifecycle worker to manage App Database CloudWatch log groups and pass the shared Enhanced Monitoring role."
 
   policy = jsonencode({
@@ -1190,7 +1190,7 @@ resource "aws_iam_role_policy_attachment" "lifecycle_worker_observability" {
 resource "aws_iam_role" "enhanced_monitoring" {
   count = local.create_monitoring_role ? 1 : 0
 
-  name = "${var.name_prefix}-enhanced-monitoring"
+  name = "${var.iam_name_prefix}-enhanced-monitoring"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -1299,10 +1299,10 @@ resource "aws_iam_role_policy_attachment" "connector" {
 # Always created — no conditional logic needed since all agents are declared
 # in this single module call.
 #
-# Bucket name format: <name_prefix>-<region>-<account_id>
+# Bucket name format: <s3_name_prefix>-<region>-<account_id>
 ####################################################################
 resource "aws_s3_bucket" "tofu_state" {
-  bucket = "${var.name_prefix}-${var.region}-${data.aws_caller_identity.current.account_id}"
+  bucket = "${var.s3_name_prefix}-${var.region}-${data.aws_caller_identity.current.account_id}"
 
   tags = local.tags
 
