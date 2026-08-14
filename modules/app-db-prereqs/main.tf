@@ -842,6 +842,12 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           }
         },
         {
+          # TagSpecifications on CreateSecurityGroup and on
+          # AuthorizeSecurityGroupIngress/Egress both evaluate CreateTags with
+          # ec2:CreateAction set to the mutating API. Without the authorize
+          # actions here, taggable aws_vpc_security_group_*_rule resources fail
+          # create-time tagging (the managed-resource Sid requires tags that do
+          # not exist yet on a brand-new rule).
           Sid    = "Ec2CreateTagsOnCreateSecurityGroup"
           Effect = "Allow"
           Action = ["ec2:CreateTags"]
@@ -854,7 +860,11 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
               "aws:RequestTag/AgentName" = each.key
               "aws:RequestTag/ManagedBy" = local.managed_by_tag
               "aws:RequestTag/Vpc"       = each.value.vpc_id
-              "ec2:CreateAction"         = "CreateSecurityGroup"
+              "ec2:CreateAction" = [
+                "AuthorizeSecurityGroupEgress",
+                "AuthorizeSecurityGroupIngress",
+                "CreateSecurityGroup",
+              ]
             }
             # Same overlapping-Allow bypass as RdsTagOnCreate: without this,
             # CreateTags on create can write non-canonical ownership values
