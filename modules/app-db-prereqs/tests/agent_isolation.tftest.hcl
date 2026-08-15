@@ -230,4 +230,25 @@ run "lifecycle_policies_require_matching_agent_name" {
     ])
     error_message = "Create-time EC2 tagging must authorize security-group and security-group-rule creates (CreateSecurityGroup plus AuthorizeSecurityGroupIngress/Egress)."
   }
+
+  assert {
+    condition = alltrue([
+      for name in keys(var.agents) : length([
+        for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : statement
+        if try(statement.Sid, null) == "Ec2CreateTaggedSecurityGroupRules" &&
+        try(statement.Effect, null) == "Allow" &&
+        toset(try(tolist(statement.Action), [statement.Action])) == toset([
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:AuthorizeSecurityGroupIngress",
+        ]) &&
+        try(statement.Resource, null) == "arn:aws:ec2:us-east-1:123456789012:security-group-rule/*" &&
+        try(statement.Condition.StringEquals["aws:RequestTag/AgentName"], null) == name &&
+        try(statement.Condition.StringEquals["aws:RequestTag/ManagedBy"], null) == "superblocks-app-database-lifecycle" &&
+        try(statement.Condition.StringEquals["aws:RequestTag/Vpc"], null) == var.agents[name].vpc_id &&
+        try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f" &&
+        try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true"
+      ]) == 1
+    ])
+    error_message = "Security-group rule creates must authorize the new rule ARN from canonical request tags; resource tags do not exist yet."
+  }
 }
