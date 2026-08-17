@@ -516,14 +516,9 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
         ]
         Condition = {
           StringEquals = {
-            "aws:RequestTag/AgentName" = each.key
-            "aws:RequestTag/ManagedBy" = local.managed_by_tag
-            "aws:RequestTag/Vpc"       = each.value.vpc_id
-          }
-          # Ownership values when present must be canonical. Without this,
-          # RdsTagOnCreate ORs with RdsAddTagsToManagedResources and bypasses
-          # the mutation-policy ownership check on the same action/resources.
-          StringEqualsIfExists = {
+            "aws:RequestTag/AgentName"         = each.key
+            "aws:RequestTag/ManagedBy"         = local.managed_by_tag
+            "aws:RequestTag/Vpc"               = each.value.vpc_id
             "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
             "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
           }
@@ -538,12 +533,14 @@ resource "aws_iam_policy" "lifecycle_worker_rds_provisioning" {
           local.rds_resources.snapshot,
         ]
         Condition = {
-          StringEqualsIfExists = {
-            "aws:RequestTag/AgentName"         = each.key
-            "aws:RequestTag/ManagedBy"         = local.managed_by_tag
-            "aws:RequestTag/Vpc"               = each.value.vpc_id
+          StringEquals = {
             "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
             "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
+          }
+          StringEqualsIfExists = {
+            "aws:RequestTag/AgentName" = each.key
+            "aws:RequestTag/ManagedBy" = local.managed_by_tag
+            "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
         }
       },
@@ -706,16 +703,16 @@ resource "aws_iam_policy" "lifecycle_worker_rds_mutation" {
         ]
         Condition = {
           StringEquals = {
-            "aws:ResourceTag/AgentName" = each.key
-            "aws:ResourceTag/ManagedBy" = local.managed_by_tag
-            "aws:ResourceTag/Vpc"       = each.value.vpc_id
-          }
-          StringEqualsIfExists = {
-            "aws:RequestTag/AgentName"         = each.key
-            "aws:RequestTag/ManagedBy"         = local.managed_by_tag
-            "aws:RequestTag/Vpc"               = each.value.vpc_id
             "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
             "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
+            "aws:ResourceTag/AgentName"        = each.key
+            "aws:ResourceTag/ManagedBy"        = local.managed_by_tag
+            "aws:ResourceTag/Vpc"              = each.value.vpc_id
+          }
+          StringEqualsIfExists = {
+            "aws:RequestTag/AgentName" = each.key
+            "aws:RequestTag/ManagedBy" = local.managed_by_tag
+            "aws:RequestTag/Vpc"       = each.value.vpc_id
           }
         }
       },
@@ -836,14 +833,9 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           Resource = "${local.ec2_prefix}:security-group-rule/*"
           Condition = {
             StringEquals = {
-              "aws:RequestTag/AgentName" = each.key
-              "aws:RequestTag/ManagedBy" = local.managed_by_tag
-              "aws:RequestTag/Vpc"       = each.value.vpc_id
-            }
-            # Direct lifecycle configurations deployed before the ownership-tag
-            # contract may omit these tags. Preserve that compatibility while
-            # rejecting non-canonical values whenever either tag is supplied.
-            StringEqualsIfExists = {
+              "aws:RequestTag/AgentName"         = each.key
+              "aws:RequestTag/ManagedBy"         = local.managed_by_tag
+              "aws:RequestTag/Vpc"               = each.value.vpc_id
               "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
               "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
             }
@@ -885,21 +877,16 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           ]
           Condition = {
             StringEquals = {
-              "aws:RequestTag/AgentName" = each.key
-              "aws:RequestTag/ManagedBy" = local.managed_by_tag
-              "aws:RequestTag/Vpc"       = each.value.vpc_id
+              "aws:RequestTag/AgentName"         = each.key
+              "aws:RequestTag/ManagedBy"         = local.managed_by_tag
+              "aws:RequestTag/Vpc"               = each.value.vpc_id
+              "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
+              "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
               "ec2:CreateAction" = [
                 "AuthorizeSecurityGroupEgress",
                 "AuthorizeSecurityGroupIngress",
                 "CreateSecurityGroup",
               ]
-            }
-            # Same overlapping-Allow bypass as RdsTagOnCreate: without this,
-            # CreateTags on create can write non-canonical ownership values
-            # even though Ec2CreateTagsOnManagedResources checks them.
-            StringEqualsIfExists = {
-              "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
-              "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
             }
           }
         },
@@ -913,16 +900,16 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           ]
           Condition = {
             StringEquals = {
-              "aws:ResourceTag/AgentName" = each.key
-              "aws:ResourceTag/ManagedBy" = local.managed_by_tag
-              "aws:ResourceTag/Vpc"       = each.value.vpc_id
-            }
-            StringEqualsIfExists = {
-              "aws:RequestTag/AgentName"         = each.key
-              "aws:RequestTag/ManagedBy"         = local.managed_by_tag
-              "aws:RequestTag/Vpc"               = each.value.vpc_id
               "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
               "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
+              "aws:ResourceTag/AgentName"        = each.key
+              "aws:ResourceTag/ManagedBy"        = local.managed_by_tag
+              "aws:ResourceTag/Vpc"              = each.value.vpc_id
+            }
+            StringEqualsIfExists = {
+              "aws:RequestTag/AgentName" = each.key
+              "aws:RequestTag/ManagedBy" = local.managed_by_tag
+              "aws:RequestTag/Vpc"       = each.value.vpc_id
             }
           }
         },
@@ -1142,7 +1129,7 @@ resource "aws_iam_policy" "lifecycle_worker_observability" {
         Action   = "logs:TagResource"
         Resource = local.app_db_cloudwatch_log_group_arn_patterns
         Condition = {
-          StringEqualsIfExists = {
+          StringEquals = {
             "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
             "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
           }

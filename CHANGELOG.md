@@ -2,11 +2,11 @@
 
 ## Unreleased
 
-### App DB prereqs: authorize tagged security-group rule creation
+### App DB prereqs: require canonical ownership tags
 
 Lifecycle workers can authorize new ingress and egress rule resources when
 their create request carries the required agent, lifecycle, and VPC tags.
-Canonical ownership and APN tag values are enforced when supplied. Existing
+Tagging requests must include the canonical ownership and APN values. Existing
 security-group mutation remains scoped by resource tags.
 
 ## v1.5.2
