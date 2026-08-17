@@ -184,8 +184,8 @@ run "lifecycle_policies_require_matching_agent_name" {
   }
 
   # Every AddTags/CreateTags/TagResource Allow that can write ownership keys must
-  # require the canonical values when those keys appear in the request. Checking
-  # only one Sid leaves overlapping Allows that IAM ORs as a bypass.
+  # require the canonical values. Checking only one Sid leaves overlapping
+  # Allows that IAM ORs as a bypass.
   assert {
     condition = alltrue([
       for name in keys(var.agents) : alltrue(flatten([
@@ -194,25 +194,25 @@ run "lifecycle_policies_require_matching_agent_name" {
             jsondecode(aws_iam_policy.lifecycle_worker_rds_provisioning[name].policy).Statement,
             jsondecode(aws_iam_policy.lifecycle_worker_rds_mutation[name].policy).Statement,
             ) : (
-            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
-            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
+            try(statement.Condition.StringEquals["aws:RequestTag/superblocks:owned"], null) == "true" &&
+            try(statement.Condition.StringEquals["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
             ) if contains(try(tolist(statement.Action), [statement.Action]), "rds:AddTagsToResource")
         ],
         [
           for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : (
-            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
-            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
+            try(statement.Condition.StringEquals["aws:RequestTag/superblocks:owned"], null) == "true" &&
+            try(statement.Condition.StringEquals["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
             ) if contains(try(tolist(statement.Action), [statement.Action]), "ec2:CreateTags")
         ],
         [
           for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability[name].policy).Statement : (
-            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
-            try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
+            try(statement.Condition.StringEquals["aws:RequestTag/superblocks:owned"], null) == "true" &&
+            try(statement.Condition.StringEquals["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
             ) if contains(try(tolist(statement.Action), [statement.Action]), "logs:TagResource")
         ],
       ]))
     ])
-    error_message = "Every AddTags/CreateTags/TagResource Allow must require canonical ownership values via StringEqualsIfExists — overlapping Allows must not bypass the check."
+    error_message = "Every AddTags/CreateTags/TagResource Allow must require canonical ownership values via StringEquals — overlapping Allows must not bypass the check."
   }
 
   assert {
@@ -251,8 +251,8 @@ run "lifecycle_policies_require_matching_agent_name" {
         try(statement.Condition.StringEquals["aws:RequestTag/AgentName"], null) == name &&
         try(statement.Condition.StringEquals["aws:RequestTag/ManagedBy"], null) == "superblocks-app-database-lifecycle" &&
         try(statement.Condition.StringEquals["aws:RequestTag/Vpc"], null) == var.agents[name].vpc_id &&
-        try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f" &&
-        try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true"
+        try(statement.Condition.StringEquals["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f" &&
+        try(statement.Condition.StringEquals["aws:RequestTag/superblocks:owned"], null) == "true"
       ]) == 1
     ])
     error_message = "Security-group rule creates must authorize the new rule ARN from canonical request tags; resource tags do not exist yet."

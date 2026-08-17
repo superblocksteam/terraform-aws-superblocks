@@ -132,7 +132,7 @@ run "grants_app_database_observability_permissions" {
       for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
       try(tolist(statement.Action), [statement.Action]) if statement.Sid == "CloudWatchLogGroupsForAppDatabases"
     ]), "logs:TagResource")
-    error_message = "TagResource must not sit in the unconditional CloudWatch allow — ownership request-tag values need StringEqualsIfExists."
+    error_message = "TagResource must not sit in the unconditional CloudWatch allow — ownership request-tag values need StringEquals."
   }
 
   assert {
@@ -143,14 +143,14 @@ run "grants_app_database_observability_permissions" {
       ]) == "logs:TagResource" &&
       try(one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
-        statement.Condition.StringEqualsIfExists if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
+        statement.Condition.StringEquals if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
         ])["aws:RequestTag/superblocks:owned"], null) == "true" &&
       try(one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
-        statement.Condition.StringEqualsIfExists if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
+        statement.Condition.StringEquals if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
         ])["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
     )
-    error_message = "CloudWatch TagResource Allow must require canonical ownership values via StringEqualsIfExists."
+    error_message = "CloudWatch TagResource Allow must require canonical ownership values via StringEquals."
   }
 
   assert {
