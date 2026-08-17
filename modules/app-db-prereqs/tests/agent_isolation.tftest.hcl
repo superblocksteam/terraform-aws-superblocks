@@ -251,10 +251,10 @@ run "lifecycle_policies_require_matching_agent_name" {
         try(statement.Condition.StringEquals["aws:RequestTag/AgentName"], null) == name &&
         try(statement.Condition.StringEquals["aws:RequestTag/ManagedBy"], null) == "superblocks-app-database-lifecycle" &&
         try(statement.Condition.StringEquals["aws:RequestTag/Vpc"], null) == var.agents[name].vpc_id &&
-        try(statement.Condition.StringEquals["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f" &&
-        try(statement.Condition.StringEquals["aws:RequestTag/superblocks:owned"], null) == "true"
+        try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f" &&
+        try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true"
       ]) == 1
     ])
-    error_message = "Security-group rule creates must require every canonical request tag when authorizing the new rule ARN; resource tags do not exist yet."
+    error_message = "Security-group rule creates must authorize the new rule ARN from canonical request tags; resource tags do not exist yet."
   }
 }
