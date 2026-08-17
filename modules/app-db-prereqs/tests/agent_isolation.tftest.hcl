@@ -220,15 +220,21 @@ run "lifecycle_policies_require_matching_agent_name" {
       for name in keys(var.agents) : alltrue([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : (
           statement.Sid != "Ec2CreateTagsOnCreateSecurityGroup" ||
-          toset(try(tolist(statement.Condition.StringEquals["ec2:CreateAction"]), [statement.Condition.StringEquals["ec2:CreateAction"]])) == toset([
-            "AuthorizeSecurityGroupEgress",
-            "AuthorizeSecurityGroupIngress",
-            "CreateSecurityGroup",
-          ])
+          (
+            toset(try(tolist(statement.Resource), [statement.Resource])) == toset([
+              "arn:aws:ec2:us-east-1:123456789012:security-group-rule/*",
+              "arn:aws:ec2:us-east-1:123456789012:security-group/*",
+            ]) &&
+            toset(try(tolist(statement.Condition.StringEquals["ec2:CreateAction"]), [statement.Condition.StringEquals["ec2:CreateAction"]])) == toset([
+              "AuthorizeSecurityGroupEgress",
+              "AuthorizeSecurityGroupIngress",
+              "CreateSecurityGroup",
+            ])
+          )
         )
       ])
     ])
-    error_message = "Create-time EC2 tagging must authorize security-group and security-group-rule creates (CreateSecurityGroup plus AuthorizeSecurityGroupIngress/Egress)."
+    error_message = "Create-time EC2 tagging must authorize security-group and security-group-rule resources for CreateSecurityGroup plus AuthorizeSecurityGroupIngress/Egress."
   }
 
   assert {

@@ -5,8 +5,9 @@
 ### App DB prereqs: authorize tagged security-group rule creation
 
 Lifecycle workers can authorize new ingress and egress rule resources when
-their create request carries the required agent, lifecycle, VPC, and ownership
-tags. Existing security-group mutation remains scoped by resource tags.
+their create request carries the required agent, lifecycle, and VPC tags.
+Canonical ownership and APN tag values are enforced when supplied. Existing
+security-group mutation remains scoped by resource tags.
 
 ## v1.5.2
 

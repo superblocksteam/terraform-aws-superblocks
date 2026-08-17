@@ -840,6 +840,9 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
               "aws:RequestTag/ManagedBy" = local.managed_by_tag
               "aws:RequestTag/Vpc"       = each.value.vpc_id
             }
+            # Direct lifecycle configurations deployed before the ownership-tag
+            # contract may omit these tags. Preserve that compatibility while
+            # rejecting non-canonical values whenever either tag is supplied.
             StringEqualsIfExists = {
               "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
               "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
