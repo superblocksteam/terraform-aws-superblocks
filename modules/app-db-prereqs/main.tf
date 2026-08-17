@@ -822,6 +822,34 @@ resource "aws_iam_policy" "lifecycle_worker_ec2_provisioning" {
           }
         },
         {
+          # A taggable aws_vpc_security_group_*_rule create authorizes both the
+          # existing security group and the new security-group-rule resource.
+          # Ec2SecurityGroupMutate covers the tagged group; the rule has no
+          # resource tags until creation, so authorize it from canonical
+          # request tags instead.
+          Sid    = "Ec2CreateTaggedSecurityGroupRules"
+          Effect = "Allow"
+          Action = [
+            "ec2:AuthorizeSecurityGroupEgress",
+            "ec2:AuthorizeSecurityGroupIngress",
+          ]
+          Resource = "${local.ec2_prefix}:security-group-rule/*"
+          Condition = {
+            StringEquals = {
+              "aws:RequestTag/AgentName" = each.key
+              "aws:RequestTag/ManagedBy" = local.managed_by_tag
+              "aws:RequestTag/Vpc"       = each.value.vpc_id
+            }
+            # Direct lifecycle configurations deployed before the ownership-tag
+            # contract may omit these tags. Preserve that compatibility while
+            # rejecting non-canonical values whenever either tag is supplied.
+            StringEqualsIfExists = {
+              "aws:RequestTag/aws-apn-id"        = local.ownership_tags["aws-apn-id"]
+              "aws:RequestTag/superblocks:owned" = local.ownership_tags["superblocks:owned"]
+            }
+          }
+        },
+        {
           Sid    = "Ec2SecurityGroupMutate"
           Effect = "Allow"
           Action = [
