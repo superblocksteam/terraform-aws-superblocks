@@ -90,12 +90,12 @@ module "app_db_prereqs" {
 # Wire enhanced_monitoring_role_arn into the OPA Helm chart so physical
 # modules can attach Enhanced Monitoring (default monitoring_interval is 60).
 # Without this, plans fail the module precondition even though the IAM role
-# exists. Also pass tags into databaseLifecycle.physicalModuleTags so runtime
-# Aurora carries ManagedBy, superblocks:owned, and aws-apn-id (the Helm chart
-# does not inject the ownership pair by default):
+# exists. Do not pass this module's tags into databaseLifecycle.physicalModuleTags:
+# that map is optional inventory tags only (cost center, team). Helm merges
+# superblocks:owned and aws-apn-id itself, and the lifecycle worker stamps
+# ManagedBy, AgentName, and Vpc.
 #
 #   databaseLifecycle:
-#     physicalModuleTags: <module.app_db_prereqs.tags>
 #     physicalModuleInputs:
 #       monitoring_role_arn: <module.app_db_prereqs.enhanced_monitoring_role_arn>
 #
@@ -118,5 +118,5 @@ output "state_bucket_name" {
 
 output "tags" {
   value       = module.app_db_prereqs.tags
-  description = "Pass to OPA Helm as databaseLifecycle.physicalModuleTags so runtime Aurora/RDS carry ManagedBy, superblocks:owned, and aws-apn-id. The Helm chart does not inject the ownership pair by default."
+  description = "Inventory tags applied to prerequisite resources, including reserved ManagedBy, superblocks:owned, and aws-apn-id. For Fargate, pass these to app-db physical_module_inputs.tags if you want the same inventory keys on runtime resources; app-db re-merges the ownership pair itself. Do not pass this map to Helm databaseLifecycle.physicalModuleTags (optional cost/team tags only)."
 }

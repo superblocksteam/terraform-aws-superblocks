@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### App DB: Helm physicalModuleTags is inventory only
+
+The EKS example and `app-db-prereqs` `tags` output no longer tell operators to
+pass ownership keys through `databaseLifecycle.physicalModuleTags`. That map is
+optional cost/team tags. Helm merges `superblocks:owned` and `aws-apn-id`; the
+lifecycle worker stamps `ManagedBy`, `AgentName`, and `Vpc`.
+
 ### App DB prereqs: authorize tagged security-group rule creation
 
 Lifecycle workers can authorize new ingress and egress rule resources when
