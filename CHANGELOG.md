@@ -2,12 +2,9 @@
 
 ## Unreleased
 
-### App DB: publish shared-pool minAvailableCapacityPercent
+### App DB: pool.min_available_capacity_percent
 
-`pool.min_available_capacity_percent` (default 20) is rendered as
-`physicalDatabase.minAvailableCapacityPercent` so Fargate OPAs advertise the
-same `databaseLifecycle:capacityPolicies` V2 floor as Helm. Set 0 to disable
-proactive enqueue.
+Default 20, rendered as `physicalDatabase.minAvailableCapacityPercent`.
 
 ### App DB prereqs: authorize tagged security-group rule creation
 
