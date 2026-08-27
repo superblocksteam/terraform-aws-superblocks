@@ -140,11 +140,12 @@ locals {
     ensure_database = {
       backend = "terraform"
       physicalDatabase = {
-        mode               = "shared_pool"
-        provisionOperation = "ensure_physical_database_instance"
-        onExhausted        = "provision"
-        capacityMax        = var.pool.max_databases
-        securityClass      = "standard"
+        mode                        = "shared_pool"
+        provisionOperation          = "ensure_physical_database_instance"
+        onExhausted                 = "provision"
+        capacityMax                 = var.pool.max_databases
+        minAvailableCapacityPercent = var.pool.min_available_capacity_percent
+        securityClass               = "standard"
       }
       terraform = local.logical_terraform
     }

@@ -58,14 +58,24 @@ variable "agent_tags" {
 
 variable "pool" {
   type = object({
-    max_databases = optional(number, 100)
+    max_databases                  = optional(number, 100)
+    min_available_capacity_percent = optional(number, 20)
   })
   default     = {}
-  description = "Shared physical pool configuration. max_databases sets the maximum number of logical databases a single RDS instance can hold before a new instance is automatically provisioned. Defaults to 100."
+  description = "Shared physical pool configuration. max_databases sets the maximum number of logical databases a single RDS instance can hold before a new instance is automatically provisioned (default 100). min_available_capacity_percent is the proactive shared-pool floor published as databaseLifecycle:capacityPolicies (V2). Defaults to 20 to match helm/agent. Set to 0 to disable proactive enqueue; omitting the field from a hand-written SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG leaves ensure-fallback-only, but this module always renders the field."
 
   validation {
     condition     = var.pool.max_databases > 0 && floor(var.pool.max_databases) == var.pool.max_databases
     error_message = "pool.max_databases must be a positive integer."
+  }
+
+  validation {
+    condition = (
+      var.pool.min_available_capacity_percent >= 0 &&
+      var.pool.min_available_capacity_percent <= 100 &&
+      floor(var.pool.min_available_capacity_percent) == var.pool.min_available_capacity_percent
+    )
+    error_message = "pool.min_available_capacity_percent must be an integer between 0 and 100."
   }
 }
 

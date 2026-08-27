@@ -181,8 +181,13 @@ module "app_db_opa1" {
   }
 
   # Optional: override the pool capacity. Default is 100 logical databases per
-  # Aurora cluster before a new cluster is automatically provisioned.
-  # pool = { max_databases = 50 }
+  # Aurora cluster before a new cluster is automatically provisioned, with a 20%
+  # proactive floor matching helm/agent. Set min_available_capacity_percent to 0
+  # to disable proactive enqueue.
+  # pool = {
+  #   max_databases                  = 50
+  #   min_available_capacity_percent = 20
+  # }
 }
 
 # Step 3 of 3: deploy the OPA ECS task, wiring in the App DB role and env
