@@ -91,9 +91,9 @@ module "app_db_prereqs" {
 # modules can attach Enhanced Monitoring (default monitoring_interval is 60).
 # Without this, plans fail the module precondition even though the IAM role
 # exists. Do not pass this module's tags into databaseLifecycle.physicalModuleTags:
-# that map is optional inventory tags only (cost center, team). Helm merges
-# superblocks:owned and aws-apn-id itself, and the lifecycle worker stamps
-# ManagedBy, AgentName, and Vpc.
+# that map is optional inventory tags only (cost center, team). Helm chart 2.69.1+
+# injects superblocks:owned and aws-apn-id (requires packaged modules v0.4.10).
+# The worker stamps AgentName. Packaged physical modules stamp ManagedBy and Vpc.
 #
 #   databaseLifecycle:
 #     physicalModuleInputs:
