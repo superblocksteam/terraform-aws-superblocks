@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### App DB: pool.min_available_capacity_percent
+
+Default 20, rendered as `physicalDatabase.minAvailableCapacityPercent`.
+
 ### App DB prereqs: authorize tagged security-group rule creation
 
 Lifecycle workers can authorize new ingress and egress rule resources when
