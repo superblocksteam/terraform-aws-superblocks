@@ -102,6 +102,46 @@ run "poll_interval_matches_helm_and_worker_default" {
   }
 }
 
+# Match helm/agent databaseLifecycle.pool so Fargate OPAs advertise the same
+# shared-pool capacity and proactive floor as EKS.
+run "pool_defaults_match_helm" {
+  command = plan
+
+  assert {
+    condition = jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_database.physicalDatabase.capacityMax == 100
+    error_message = "capacityMax must default to 100 to match helm/agent pool.maxDatabases."
+  }
+
+  assert {
+    condition = jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_database.physicalDatabase.minAvailableCapacityPercent == 20
+    error_message = "minAvailableCapacityPercent must default to 20 to match helm/agent pool.minAvailableCapacityPercent."
+  }
+}
+
+run "pool_min_available_capacity_percent_zero_disables_proactive_enqueue" {
+  command = plan
+
+  variables {
+    pool = {
+      min_available_capacity_percent = 0
+    }
+  }
+
+  assert {
+    condition = jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations.ensure_database.physicalDatabase.minAvailableCapacityPercent == 0
+    error_message = "minAvailableCapacityPercent 0 must be rendered so the worker can distinguish disable-proactive from omit."
+  }
+}
+
 run "the_logical_module_gets_only_the_inputs_it_still_declares" {
   command = plan
 
@@ -173,6 +213,42 @@ run "pool_max_databases_rejects_fractions" {
   variables {
     pool = {
       max_databases = 1.5
+    }
+  }
+
+  expect_failures = [var.pool]
+}
+
+run "pool_min_available_capacity_percent_rejects_fractions" {
+  command = plan
+
+  variables {
+    pool = {
+      min_available_capacity_percent = 1.5
+    }
+  }
+
+  expect_failures = [var.pool]
+}
+
+run "pool_min_available_capacity_percent_rejects_over_100" {
+  command = plan
+
+  variables {
+    pool = {
+      min_available_capacity_percent = 101
+    }
+  }
+
+  expect_failures = [var.pool]
+}
+
+run "pool_min_available_capacity_percent_rejects_negative" {
+  command = plan
+
+  variables {
+    pool = {
+      min_available_capacity_percent = -1
     }
   }
 
