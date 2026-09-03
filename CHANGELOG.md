@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### App DB: Helm physicalModuleTags is inventory only
+
+The EKS example no longer passes ownership keys through `physicalModuleTags`.
+Requires Helm chart 2.69.1+ and packaged physical modules v0.4.10.
+
 ### App DB: pool.min_available_capacity_percent
 
 Default 20, rendered as `physicalDatabase.minAvailableCapacityPercent`.
