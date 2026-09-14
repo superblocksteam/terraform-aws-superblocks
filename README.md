@@ -517,3 +517,61 @@ variable "superblocks_agent_environment_variables" {
   * `lb_security_group_ids` allows users to set security groups for the loadbalancer, if `create_lb` is set to true.
   * `ecs_security_group_ids` allows users to set security groups for the ECS cluster.
 * `create_dns` no longer creates both certificate and the DNS entry. A new `create_certs` flag exists to create create the ACM certificate. `create_dns` now only determines whether the DNS entry to point to the loadbalancer is created.
+
+The module carries `moved` blocks for the renames this release did, so the
+upgrade rewrites your state in place instead of destroying and recreating the
+certificate, the ECS cluster and the agent's IAM role. Upgrading requires
+Terraform 1.1 or later; on Terraform 1.0 the `moved` blocks are a parse error.
+
+Two things the module cannot do for you:
+
+* **The old shared security group is deleted.** `module.sg[0]` no longer exists.
+  The load balancer and the ECS service get their own security groups
+  (`create_lb_sg` / `create_ecs_sg`), and the plan destroys the shared one after
+  the new groups are attached. If you referenced that security group from
+  outside this module, point those references at the `lb_security_group_id` and
+  `ecs_security_group_id` outputs before upgrading.
+* **The load balancer and its target group are replaced.** Both switched from a
+  fixed `name` to a `name_prefix`, which AWS cannot change in place. The target
+  group has `create_before_destroy` set; the load balancer does not, so its DNS
+  name changes. Plan the upgrade during a maintenance window and expect the
+  `aws_route53_record` for the agent to be updated to the new load balancer.
+
+Run `terraform plan` and read it before applying. The plan should show moves and
+those replacements -- if it instead fails with `Error: Cycle:` involving
+`module.dns[0]`, you are on a version of the module that predates this fix
+([#17](https://github.com/superblocksteam/terraform-aws-superblocks/issues/17)).
+
+### 1.1.x to 1.2.x
+
+`aws_iam_role_policy_attachment.policy-attach` was renamed to
+`aws_iam_role_policy_attachment.superblocks_agent_policy_attachment` inside the
+ECS module. A `moved` block handles this.
+
+### 1.3.1 to 1.3.2
+
+The single load balancer target group was split into an HTTP and a gRPC target
+group, renaming `aws_lb_target_group.superblocks` to `aws_lb_target_group.http`.
+A `moved` block handles the rename. The new gRPC target group and listener are
+created, and the HTTP target group is replaced because its health check and port
+changed -- it has `create_before_destroy` set, so the replacement is ordered
+safely.
+
+### 1.3.2 to 1.4.x
+
+The VPC and security group submodules stopped wrapping
+`terraform-aws-modules/*` and vendored those resources instead. The security
+group resources kept their upstream addresses, so nothing is needed there. The
+VPC resources moved out from under a nested `module.vpc`, and this module does
+**not** carry `moved` blocks for them yet: if you set `create_vpc = true` and
+are upgrading across 1.4.0, plan carefully and move the state yourself, for
+example:
+
+```bash
+terraform state mv 'module.superblocks_agent.module.vpc[0].module.vpc.aws_vpc.this[0]' \
+                   'module.superblocks_agent.module.vpc[0].aws_vpc.this'
+```
+
+`terraform plan` will list every address that would otherwise be destroyed and
+recreated; work through that list before applying. Deployments that bring their
+own VPC (`create_vpc = false`, the default) are unaffected.
