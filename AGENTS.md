@@ -70,9 +70,12 @@ pre-commit run --all-files # Run formatting hooks
 
 Test suites live in `tests/` (root module) and `modules/<name>/tests/`. They all
 use `mock_provider "aws"`, so they need no AWS account and create nothing.
-Nothing runs them automatically -- the repo has no CI. Note that three runs in
-`modules/app-db-prereqs` currently fail on `main`: they assert on
-`aws_iam_policy.*.policy`, which is unknown at plan time on current Terraform.
+
+`.github/workflows/terraform.yaml` validates every module and runs the suites on
+each PR. Note that three runs in `modules/app-db-prereqs` currently fail on
+`main`: they assert on `aws_iam_policy.*.policy`, which is unknown at plan time
+on current Terraform. That directory is deliberately left out of the CI gate
+rather than papered over, and belongs back in once those assertions are fixed.
 
 ## Module Architecture
 
