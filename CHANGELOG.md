@@ -11,7 +11,8 @@ references it, which Terraform reports as `Error: Cycle:` rather than a plan.
 `moved` blocks now cover that rename, the ECS `count` removal, and two later
 renames (`aws_lb_target_group.superblocks` to `.http` in v1.3.2, and
 `aws_iam_role_policy_attachment.policy-attach` to
-`.superblocks_agent_policy_attachment` in v1.2.0). Upgrading now requires
+`.superblocks_agent_policy_attachment[0]` in v1.2.0 -- the replacement is
+counted, so that move names an index). Upgrading now requires
 Terraform 1.1 or later, which is where `moved` blocks were introduced.
 ([#17](https://github.com/superblocksteam/terraform-aws-superblocks/issues/17))
 

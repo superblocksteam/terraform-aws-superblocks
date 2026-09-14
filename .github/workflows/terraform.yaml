@@ -69,7 +69,7 @@ jobs:
       - name: Run terraform test
         run: |
           set -euo pipefail
-          for dir in . modules/app-db; do
+          for dir in . modules/app-db modules/ecs modules/load-balancer; do
             echo "::group::${dir}"
             terraform -chdir="${dir}" init -backend=false -input=false
             terraform -chdir="${dir}" test

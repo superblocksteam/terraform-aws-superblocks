@@ -527,10 +527,14 @@ Two things the module cannot do for you:
 
 * **The old shared security group is deleted.** `module.sg[0]` no longer exists.
   The load balancer and the ECS service get their own security groups
-  (`create_lb_sg` / `create_ecs_sg`), and the plan destroys the shared one after
-  the new groups are attached. If you referenced that security group from
-  outside this module, point those references at the `lb_security_group_id` and
-  `ecs_security_group_id` outputs before upgrading.
+  (`create_lb_sg` / `create_ecs_sg`), and the shared one is destroyed.
+  Terraform does not sequence that destroy behind the ECS service's ENI churn,
+  so `DeleteSecurityGroup` can fail with `DependencyViolation` while ENIs from
+  the previous task generation are still draining. If that happens the apply
+  aborts partway; re-run `terraform apply` once the service reaches steady
+  state, or delete the group by hand. If you referenced that security group
+  from outside this module, point those references at the
+  `lb_security_group_id` and `ecs_security_group_id` outputs before upgrading.
 * **The load balancer and its target group are replaced.** Both switched from a
   fixed `name` to a `name_prefix`, which AWS cannot change in place. The target
   group has `create_before_destroy` set; the load balancer does not, so its DNS
@@ -561,17 +565,32 @@ safely.
 
 The VPC and security group submodules stopped wrapping
 `terraform-aws-modules/*` and vendored those resources instead. The security
-group resources kept their upstream addresses, so nothing is needed there. The
-VPC resources moved out from under a nested `module.vpc`, and this module does
-**not** carry `moved` blocks for them yet: if you set `create_vpc = true` and
-are upgrading across 1.4.0, plan carefully and move the state yourself, for
-example:
+group resources kept their upstream addresses, so nothing is needed there.
+
+The VPC resources moved out from under a nested `module.vpc`, and this module
+does **not** carry `moved` blocks for them. **If you set `create_vpc = true`,
+do not upgrade across 1.4.0 in place without working out the full address
+mapping first.**
+
+The obvious shortcut does not work. The vendored resources did not keep the
+upstream `count` arity uniformly: at head `aws_route_table.public` and
+`aws_internet_gateway.this` have no `count`, while `aws_subnet.public`,
+`aws_subnet.private`, `aws_nat_gateway.this`, `aws_eip.nat` and
+`aws_route_table.private` keep theirs. So an index-preserving move is correct
+for some addresses and wrong for others, and there is no single pattern to copy
+across:
 
 ```bash
+# Correct for this one -- the target has no count.
 terraform state mv 'module.superblocks_agent.module.vpc[0].module.vpc.aws_vpc.this[0]' \
                    'module.superblocks_agent.module.vpc[0].aws_vpc.this'
 ```
 
-`terraform plan` will list every address that would otherwise be destroyed and
-recreated; work through that list before applying. Deployments that bring their
-own VPC (`create_vpc = false`, the default) are unaffected.
+Build the list yourself rather than guessing: `terraform state list` for the old
+addresses, `terraform plan` for everything that would otherwise be destroyed,
+and check each target's arity in `modules/vpc/main.tf`. Any address you miss is
+planned for destroy, and an apply that reaches a subnet or NAT gateway still
+hosting live ALB ENIs or Fargate tasks fails partway with
+`DependencyViolation` — leaving a half-migrated state that has to be finished,
+not abandoned. Deployments that bring their own VPC (`create_vpc = false`, the
+default) are unaffected.

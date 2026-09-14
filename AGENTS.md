@@ -160,11 +160,22 @@ So, when you rename a module or a resource, or change its `count`/`for_each`:
 2. Keep it forever. `moved` blocks are a no-op for anyone who never had the old
    address, and deleting one silently breaks whoever has not upgraded yet.
 3. Bump that module's `required_version` to at least `>= 1.1`.
-4. Cover it in `tests/upgrade_from_pre_1.0.tftest.hcl`. That suite seeds state
-   at the old addresses from a fixture, applies the current module over the same
-   state via a shared `state_key`, and asserts resource ids are unchanged -- a
-   replaced resource comes back with a fresh id under the mock provider. Verify
-   a new assertion by deleting the `moved` block and watching it fail.
+4. Cover it with a test that fails without the `moved` block. The pattern:
+   seed state at the old addresses from a fixture, apply the current module over
+   that same state via a shared `state_key`, and assert resource ids are
+   unchanged -- a replaced resource comes back with a fresh id under the mock
+   provider. Root-module moves go in `tests/upgrade_from_pre_1.0.tftest.hcl`;
+   a move inside a submodule goes in that module's own `tests/`, because a
+   module-level run can reference its resources directly while the root suite
+   can only see module outputs. Always verify the new assertion by deleting the
+   `moved` block and watching it fail -- an assertion that cannot fail is how a
+   missing instance index shipped once already.
+
+   Watch the index mode in particular. If the replacement resource has `count`
+   or `for_each` and the old one did not, the `moved` block must name an index
+   (`to = aws_foo.bar[0]`). A whole-resource move preserves instance keys, so
+   without it the old no-key instance lands on an address the config does not
+   declare and Terraform silently plans destroy/create.
 5. Document it under `## Migration Guides` in README.md, including anything
    `moved` cannot fix (replacements forced by `name` to `name_prefix` changes,
    resources that are genuinely deleted).
