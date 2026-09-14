@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Root module: upgrading from a pre-1.0 deployment no longer fails with a cycle
+
+v1.0.0 renamed `modules/dns` to `modules/certs` and removed the `count` from the
+ECS module without recording either as a state move, so upgrading read both as
+destroy/create. The ACM certificate cannot be destroyed while the ALB listener
+references it, which Terraform reports as `Error: Cycle:` rather than a plan.
+`moved` blocks now cover that rename, the ECS `count` removal, and two later
+renames (`aws_lb_target_group.superblocks` to `.http` in v1.3.2, and
+`aws_iam_role_policy_attachment.policy-attach` to
+`.superblocks_agent_policy_attachment[0]` in v1.2.0 -- the replacement is
+counted, so that move names an index). Upgrading now requires
+Terraform 1.1 or later, which is where `moved` blocks were introduced.
+([#17](https://github.com/superblocksteam/terraform-aws-superblocks/issues/17))
+
 ### App DB: Helm physicalModuleTags is inventory only
 
 The EKS example no longer passes ownership keys through `physicalModuleTags`.

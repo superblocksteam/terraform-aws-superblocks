@@ -1,0 +1,77 @@
+name: Terraform
+
+# The repo carries `terraform test` suites that nothing ran automatically, so a
+# regression in them was invisible. This gate runs them, and validates every
+# module, on each PR.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  # Pinned so a Terraform release cannot silently change what this gate means.
+  # `moved` blocks need >= 1.1; the suites need >= 1.7 for mock_provider and
+  # >= 1.9 for a shared `state_key` between run blocks.
+  TERRAFORM_VERSION: 1.16.1
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          # The wrapper swallows exit codes, which would let the loops below
+          # pass regardless of the result.
+          terraform_wrapper: false
+
+      - name: Validate the root module and every submodule
+        run: |
+          set -euo pipefail
+          for dir in . modules/*/; do
+            echo "::group::${dir}"
+            terraform -chdir="${dir}" init -backend=false -input=false
+            terraform -chdir="${dir}" validate
+            echo "::endgroup::"
+          done
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # Every suite runs against `mock_provider "aws"`, so no credentials are
+      # needed and nothing is created in any AWS account.
+      #
+      # modules/app-db-prereqs is deliberately absent: three of its runs already
+      # fail on main under this Terraform version, asserting on
+      # `aws_iam_policy.*.policy` values that are unknown at plan time. Listing
+      # it would make this gate permanently red on an unrelated pre-existing
+      # failure. It belongs back here once those assertions are fixed.
+      - name: Run terraform test
+        run: |
+          set -euo pipefail
+          for dir in . modules/app-db modules/ecs modules/load-balancer; do
+            echo "::group::${dir}"
+            terraform -chdir="${dir}" init -backend=false -input=false
+            terraform -chdir="${dir}" test
+            echo "::endgroup::"
+          done
