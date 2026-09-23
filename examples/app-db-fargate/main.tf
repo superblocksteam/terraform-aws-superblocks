@@ -68,6 +68,14 @@ module "app_db_prereqs" {
       # nest under one another.
       # key_prefix = "app-db/prod-db1"
 
+      # Optional: namespace in the shared artifacts bucket, passed through as
+      # artifacts.keyPrefix. Leave unset for a typical OPA; the worker then
+      # writes <profileToken>/<kind>/... Set it when more than one agent
+      # shares the bucket (e.g. "team-a") so keys become
+      # team-a/<profileToken>/<kind>/... Must match that OPA's
+      # artifacts.keyPrefix.
+      # artifacts_key_prefix = "team-a"
+
       # Optional: ARN of a customer-managed KMS key used to encrypt the RDS-managed
       # master secret in Secrets Manager. When omitted, the secret uses the AWS-managed
       # Secrets Manager key for your account.
@@ -82,16 +90,28 @@ module "app_db_prereqs" {
     # }
   }
 
-  # Optional: override IAM and S3 name prefixes independently (both default
-  # to "sb-app-db") when your organization requires different naming for
-  # IAM roles/policies vs the OpenTofu state bucket. Max 16 characters each.
+  # Optional: override IAM and S3 name prefixes independently (the first two
+  # default to "sb-app-db") when your organization requires different naming
+  # for IAM roles/policies vs the OpenTofu state bucket. Max 16 characters each.
   # iam_name_prefix = "acme-app-db"
   # s3_name_prefix  = "acme-state"
 
-  # Optional: customer-managed KMS key for the OpenTofu state bucket.
-  # When omitted, the bucket uses AWS account-default encryption (SSE-S3) and
-  # lifecycle-worker IAM does not grant any KMS actions for state.
-  # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
+  # Optional: prefix for the artifacts bucket, default "sb-data-artifacts"
+  # (max 20 characters). Like s3_name_prefix for state, it identifies the
+  # bucket owned by this module invocation. Independent invocations in the
+  # same account and region must use distinct values.
+  # s3_artifacts_name_prefix = "acme-data-artifacts"
+
+  # Optional explicit HTTPS browser origins allowed to PUT artifacts. Include
+  # every origin that hosts the Superblocks UI when enabling browser uploads;
+  # an empty list creates no CORS configuration.
+  allowed_origins = ["https://app.superblocks.com"]
+
+  # Optional: customer-managed KMS keys. State and artifacts are independent
+  # so a principal that can decrypt OpenTofu state cannot decrypt customer data.
+  # When omitted, that bucket uses AWS account-default encryption (SSE-S3).
+  # kms_key_arn           = "arn:aws:kms:us-east-1:123456789012:key/mrk-state"
+  # artifacts_kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-artifacts"
 
   # Optional: reuse an account-level Enhanced Monitoring role created by a
   # prior regional apply of this module. The role name is account-scoped
@@ -233,6 +253,11 @@ output "agents" {
 output "enhanced_monitoring_role_arn" {
   value       = module.app_db_prereqs.enhanced_monitoring_role_arn
   description = "Pass into modules/app-db (or physicalModuleInputs.monitoring_role_arn) so Enhanced Monitoring can attach. Required unless you set monitoring_interval = 0."
+}
+
+output "artifacts_bucket_name" {
+  value       = module.app_db_prereqs.artifacts_bucket_name
+  description = "S3 bucket for data artifacts (imports, exports, and later kinds). One bucket shared by every agent in this apply. Reserved for future Fargate artifacts runtime wiring; no current app-db input or environment variable consumes it."
 }
 
 output "state_bucket_name" {

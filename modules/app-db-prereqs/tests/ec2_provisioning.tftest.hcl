@@ -33,6 +33,7 @@ run "ec2_vpc_describe_grants_required_reads" {
   command = plan
 
   variables {
+    allowed_origins = ["https://app.superblocks.com"]
     deployment_type = "eks"
     region          = "us-east-1"
     agents = {
@@ -52,7 +53,7 @@ run "ec2_vpc_describe_grants_required_reads" {
     condition = toset(one([
       for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning["opa1"].policy).Statement :
       statement.Action if statement.Sid == "Ec2VpcDescribe"
-    ])) == toset([
+      ])) == toset([
       "ec2:DescribeAccountAttributes",
       "ec2:DescribeAvailabilityZones",
       "ec2:DescribeNetworkInterfaces",

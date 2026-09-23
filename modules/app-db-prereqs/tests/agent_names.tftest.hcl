@@ -23,6 +23,7 @@ mock_provider "aws" {
 }
 
 variables {
+  allowed_origins = ["https://app.superblocks.com"]
   deployment_type = "fargate"
   region          = "us-east-1"
 

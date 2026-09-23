@@ -28,7 +28,24 @@ mock_provider "aws" {
   }
 }
 
+override_resource {
+  target = aws_s3_bucket.tofu_state
+  values = {
+    arn = "arn:aws:s3:::sb-app-db-us-east-1-123456789012"
+    id  = "sb-app-db-us-east-1-123456789012"
+  }
+}
+
+override_resource {
+  target = aws_s3_bucket.artifacts
+  values = {
+    arn = "arn:aws:s3:::sb-data-artifacts-us-east-1-123456789012"
+    id  = "sb-data-artifacts-us-east-1-123456789012"
+  }
+}
+
 variables {
+  allowed_origins = ["https://app.superblocks.com"]
   deployment_type = "fargate"
   region          = "us-east-1"
 

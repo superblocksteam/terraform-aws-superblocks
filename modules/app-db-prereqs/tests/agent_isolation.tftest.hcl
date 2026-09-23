@@ -24,6 +24,7 @@ mock_provider "aws" {
 }
 
 variables {
+  allowed_origins = ["https://app.superblocks.com"]
   deployment_type = "fargate"
   region          = "us-east-1"
 
@@ -167,7 +168,7 @@ run "lifecycle_policies_require_matching_agent_name" {
         try(one([
           for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement :
           statement.Condition.Null if try(statement.Sid, null) == "Ec2DeleteTagsExceptProtectedTags"
-          ])["aws:TagKeys"], null) == "false",
+        ])["aws:TagKeys"], null) == "false",
         length([
           for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : statement
           if try(statement.Sid, null) == "DenyDeleteTagsWhenTagKeysAbsent" &&
@@ -196,19 +197,19 @@ run "lifecycle_policies_require_matching_agent_name" {
             ) : (
             try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
             try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
-            ) if contains(try(tolist(statement.Action), [statement.Action]), "rds:AddTagsToResource")
+          ) if contains(try(tolist(statement.Action), [statement.Action]), "rds:AddTagsToResource")
         ],
         [
           for statement in jsondecode(aws_iam_policy.lifecycle_worker_ec2_provisioning[name].policy).Statement : (
             try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
             try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
-            ) if contains(try(tolist(statement.Action), [statement.Action]), "ec2:CreateTags")
+          ) if contains(try(tolist(statement.Action), [statement.Action]), "ec2:CreateTags")
         ],
         [
           for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability[name].policy).Statement : (
             try(statement.Condition.StringEqualsIfExists["aws:RequestTag/superblocks:owned"], null) == "true" &&
             try(statement.Condition.StringEqualsIfExists["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
-            ) if contains(try(tolist(statement.Action), [statement.Action]), "logs:TagResource")
+          ) if contains(try(tolist(statement.Action), [statement.Action]), "logs:TagResource")
         ],
       ]))
     ])

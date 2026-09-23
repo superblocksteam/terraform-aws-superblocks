@@ -24,9 +24,17 @@ mock_provider "aws" {
       arn = "arn:aws:iam::123456789012:role/mock"
     }
   }
+
+  mock_resource "aws_s3_bucket" {
+    defaults = {
+      arn = "arn:aws:s3:::sb-data-artifacts-us-east-1-123456789012"
+      id  = "sb-data-artifacts-us-east-1-123456789012"
+    }
+  }
 }
 
 variables {
+  allowed_origins = ["https://app.superblocks.com"]
   deployment_type = "fargate"
   region          = "us-east-1"
 
@@ -69,10 +77,13 @@ run "the_connect_grant_names_hashed_profile_tokens" {
 
   assert {
     condition = alltrue([
-      for resource in flatten([for statement in jsondecode(aws_iam_policy.connector["prod"].policy).Statement : statement.Resource]) :
+      for resource in flatten([
+        for statement in jsondecode(aws_iam_policy.connector["prod"].policy).Statement : statement.Resource
+        if statement.Action == "rds-db:connect"
+      ]) :
       can(regex("/sbndb_[0-9a-f]{16}_\\*_runtime$", resource))
     ])
-    error_message = "Every grant must target the sbndb_<16 hex>_<application token>_runtime namespace the worker creates; a bare data tag matches no DB user."
+    error_message = "Every connect grant must target the sbndb_<16 hex>_<application token>_runtime namespace the worker creates; a bare data tag matches no DB user."
   }
 
   # The Sid stays human-readable so an operator can map a statement back to the
@@ -80,8 +91,9 @@ run "the_connect_grant_names_hashed_profile_tokens" {
   assert {
     condition = [
       for statement in jsondecode(aws_iam_policy.connector["prod"].policy).Statement : statement.Sid
+      if statement.Action == "rds-db:connect"
     ] == ["ConnectTagNonprod", "ConnectTagProduction"]
-    error_message = "Statement Sids must name the data tag they came from."
+    error_message = "Connect statement Sids must name the data tag they came from."
   }
 }
 
@@ -143,6 +155,7 @@ run "every_taggable_resource_carries_the_tags" {
     condition = alltrue(flatten([
       for name in keys(var.agents) : [
         for tags in [
+          aws_iam_policy.artifacts[name].tags,
           aws_iam_policy.connector[name].tags,
           aws_iam_policy.lifecycle_worker_assume_connector[name].tags,
           aws_iam_policy.lifecycle_worker_ec2_provisioning[name].tags,
@@ -165,12 +178,12 @@ run "every_taggable_resource_carries_the_tags" {
 
   assert {
     condition = alltrue([
-      for tags in [aws_iam_role.enhanced_monitoring[0].tags, aws_s3_bucket.tofu_state.tags] : (
+      for tags in [aws_iam_role.enhanced_monitoring[0].tags, aws_s3_bucket.tofu_state.tags, aws_s3_bucket.artifacts.tags] : (
         tags["superblocks:owned"] == "true" &&
         tags["aws-apn-id"] == "pc:ctelqp437y3cvjkv5rv0z2w4f" &&
         tags["ManagedBy"] == "superblocks-app-database-lifecycle"
       )
     ])
-    error_message = "The Enhanced Monitoring role and the state bucket must carry the ownership pair and ManagedBy."
+    error_message = "The Enhanced Monitoring role, the state bucket, and the artifacts bucket must carry the ownership pair and ManagedBy."
   }
 }
