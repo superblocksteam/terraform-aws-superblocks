@@ -2,12 +2,18 @@ output "agents" {
   value = {
     for k in keys(var.agents) : k => {
       agent_tags                = var.agents[k].agent_tags
+      artifacts_key_prefix      = local.agent_artifacts_key_prefixes[k]
       connector_role_arn        = aws_iam_role.connector[k].arn
       key_prefix                = local.agent_state_key_prefixes[k]
       lifecycle_worker_role_arn = local.agent_role_arns[k]
     }
   }
-  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), agent_tags (pass as agent_tags to the app-db module), and key_prefix (the IAM-backed state prefix — pass as key_prefix to the app-db module; IAM grants state access under this prefix only)."
+  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), agent_tags (pass as agent_tags to the app-db module), key_prefix (the IAM-backed state prefix — pass as key_prefix to the app-db module), and artifacts_key_prefix (optional namespace to pass as artifacts.keyPrefix; empty when unset). Object grants are [<that prefix>/]<profileToken>/*; kinds are not part of this output."
+}
+
+output "artifacts_bucket_name" {
+  value       = aws_s3_bucket.artifacts.id
+  description = "Name of the long-lived S3 bucket for data artifacts (imports, exports, and later kinds). One bucket per module invocation, shared by every agent pointed at it. Objects are partitioned by agents[].artifacts_key_prefix (optional namespace) then profile token; the orchestrator deletes what it is done with. Pass to the OPA as artifacts.bucket (top-level, not under databaseLifecycle). EKS: Helm values. Fargate: a future app-db env var, not SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG."
 }
 
 output "enhanced_monitoring_role_arn" {

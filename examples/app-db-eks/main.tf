@@ -50,6 +50,14 @@ module "app_db_prereqs" {
       # The existing role's trust policy is left unchanged.
       # existing_role_name = "my-existing-opa-irsa-role"
 
+      # Optional: namespace in the shared artifacts bucket, passed through as
+      # artifacts.keyPrefix. Leave unset for a typical OPA; the worker then
+      # writes <profileToken>/<kind>/... Set it when more than one agent
+      # shares the bucket (e.g. "team-a") so keys become
+      # team-a/<profileToken>/<kind>/... Must match that OPA's Helm
+      # artifacts.keyPrefix.
+      # artifacts_key_prefix = "team-a"
+
       # Optional: ARN of a customer-managed KMS key used to encrypt the RDS-managed
       # master secret in Secrets Manager. When omitted, the secret uses the AWS-managed
       # Secrets Manager key for your account.
@@ -64,14 +72,28 @@ module "app_db_prereqs" {
     # }
   }
 
-  # Optional: override IAM and S3 name prefixes independently (both default
-  # to "sb-app-db") when your organization requires different naming for
-  # IAM roles/policies vs the OpenTofu state bucket.
+  # Optional: override IAM and S3 name prefixes independently (the first two
+  # default to "sb-app-db") when your organization requires different naming
+  # for IAM roles/policies vs the OpenTofu state bucket.
   # iam_name_prefix = "acme-app-db"
   # s3_name_prefix  = "acme-state"
 
-  # Optional: customer-managed KMS key for the OpenTofu state bucket.
-  # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-..."
+  # Optional: prefix for the artifacts bucket, default "sb-data-artifacts"
+  # (max 20 characters). Like s3_name_prefix for state, it identifies the
+  # bucket owned by this module invocation. Independent invocations in the
+  # same account and region must use distinct values.
+  # s3_artifacts_name_prefix = "acme-data-artifacts"
+
+  # Optional explicit HTTPS browser origins allowed to PUT artifacts. Include
+  # every origin that hosts the Superblocks UI when enabling browser uploads;
+  # an empty list creates no CORS configuration.
+  allowed_origins = ["https://app.superblocks.com"]
+
+  # Optional: customer-managed KMS keys. State and artifacts are independent
+  # so a principal that can decrypt OpenTofu state cannot decrypt customer data.
+  # When omitted, that bucket uses AWS account-default encryption (SSE-S3).
+  # kms_key_arn           = "arn:aws:kms:us-east-1:123456789012:key/mrk-state"
+  # artifacts_kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-artifacts"
 
   # Optional: reuse an account-level Enhanced Monitoring role created by a
   # prior regional apply of this module. The role name is account-scoped
@@ -95,6 +117,11 @@ module "app_db_prereqs" {
 # injects superblocks:owned and aws-apn-id (requires packaged modules v0.4.10).
 # The worker stamps AgentName. Packaged physical modules stamp ManagedBy and Vpc.
 #
+#   artifacts:
+#     bucket: <module.app_db_prereqs.artifacts_bucket_name>
+#     keyPrefix: <module.app_db_prereqs.agents["opa1"].artifacts_key_prefix>  # omit when empty
+#     region: us-east-1
+#     kmsKeyArn: <artifacts_kms_key_arn or empty>
 #   databaseLifecycle:
 #     physicalModuleInputs:
 #       monitoring_role_arn: <module.app_db_prereqs.enhanced_monitoring_role_arn>
@@ -103,7 +130,12 @@ module "app_db_prereqs" {
 
 output "agents" {
   value       = module.app_db_prereqs.agents
-  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (annotate the OPA service account via eks.amazonaws.com/role-arn), connector_role_arn (pass to OPA Helm chart as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), and key_prefix (the IAM-granted state prefix — the Helm lifecycle backend keys must start with it)."
+  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (annotate the OPA service account via eks.amazonaws.com/role-arn), connector_role_arn (pass to OPA Helm chart as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), key_prefix (the IAM-granted state prefix — the Helm lifecycle backend keys must start with it), and artifacts_key_prefix (pass as that OPA's Helm artifacts.keyPrefix)."
+}
+
+output "artifacts_bucket_name" {
+  value       = module.app_db_prereqs.artifacts_bucket_name
+  description = "S3 bucket for data artifacts (imports, exports, and later kinds). One bucket shared by every agent in this apply. Pass to OPA Helm as artifacts.bucket (top-level, not under databaseLifecycle), with artifacts.keyPrefix set to that agent's artifacts_key_prefix, artifacts.region set to this apply's region, and artifacts.kmsKeyArn set to artifacts_kms_key_arn when you configured one."
 }
 
 output "enhanced_monitoring_role_arn" {

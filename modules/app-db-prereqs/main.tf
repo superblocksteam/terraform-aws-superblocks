@@ -123,10 +123,11 @@ locals {
 
   # ----------------------------------------------------------------
   # KMS statement for the state bucket. Only attached when the caller
-  # configures a customer-managed key (SSE-KMS). When kms_key_arn is
-  # null the bucket stays on SSE-S3 and no KMS grant is required —
-  # emitting Resource:* gated only by CalledVia would widen decrypt
-  # for brownfield roles that already have broader S3 permissions.
+  # configures a customer-managed key (SSE-KMS). When
+  # kms_key_arn is null the bucket stays on SSE-S3 and no
+  # KMS grant is required — emitting Resource:* gated only by CalledVia
+  # would widen decrypt for brownfield roles that already have broader
+  # S3 permissions.
   # ----------------------------------------------------------------
   state_bucket_kms_statement = var.kms_key_arn == null ? null : {
     Sid    = "StateBucketKms"
@@ -140,6 +141,46 @@ locals {
       "kms:ReEncryptTo",
     ]
     Resource = var.kms_key_arn
+  }
+
+  # ----------------------------------------------------------------
+  # Artifacts bucket. One bucket per module invocation, shared by every
+  # agent declared in that invocation. Independent module invocations in
+  # the same account and region must use distinct bucket-name prefixes.
+  #
+  # The bucket is long-lived. The orchestrator deletes completed objects it
+  # is done with; S3 only aborts incomplete multipart uploads after seven
+  # days. artifacts.keyPrefix is an optional namespace for an agent that
+  # shares the bucket (unset for a typical OPA). IAM is scoped to
+  # [<keyPrefix>/]<profileToken>/* so imports, exports, and later kinds need
+  # no re-apply. Object keys:
+  # [<keyPrefix>/]<profileToken>/<kind>/...
+  # ----------------------------------------------------------------
+  artifacts_bucket_arn = aws_s3_bucket.artifacts.arn
+
+  agent_artifacts_key_prefixes = {
+    for k, agent in var.agents : k => agent.artifacts_key_prefix == null ? "" : agent.artifacts_key_prefix
+  }
+
+  # Identity prefix the worker is allowed to read and write: env namespace
+  # (optional) then profile token. Kind is a trailing segment the worker
+  # chooses, not an IAM dimension.
+  agent_artifacts_identity_prefixes = {
+    for k, agent in var.agents : k => {
+      for tag in agent.agent_tags :
+      tag => local.agent_artifacts_key_prefixes[k] == "" ? local.profile_tokens[tag] : "${local.agent_artifacts_key_prefixes[k]}/${local.profile_tokens[tag]}"
+    }
+  }
+
+  artifacts_kms_statement = var.artifacts_kms_key_arn == null ? null : {
+    Sid    = "ArtifactsBucketKms"
+    Effect = "Allow"
+    Action = [
+      "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:GenerateDataKey",
+    ]
+    Resource = var.artifacts_kms_key_arn
   }
 
   # ----------------------------------------------------------------
@@ -1304,7 +1345,7 @@ resource "aws_iam_policy" "connector" {
   for_each = var.agents
 
   name        = "superblocks-app-db-connector-${each.key}"
-  description = "Allows the ${each.key} connector role to authenticate to RDS/Aurora instances using IAM database authentication."
+  description = "Allows the ${each.key} connector role to authenticate to RDS/Aurora using IAM database authentication."
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -1328,6 +1369,73 @@ resource "aws_iam_role_policy_attachment" "connector" {
   for_each   = var.agents
   role       = aws_iam_role.connector[each.key].name
   policy_arn = aws_iam_policy.connector[each.key].arn
+}
+
+resource "aws_iam_policy" "artifacts" {
+  for_each = var.agents
+
+  name        = "${var.iam_name_prefix}-${each.key}-artifacts"
+  description = "Allows the ${each.key} lifecycle worker to manage data artifacts under its profile tokens."
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = concat(
+      [
+        {
+          Sid    = "ArtifactsBucketMetadata"
+          Effect = "Allow"
+          Action = [
+            "s3:GetBucketLocation",
+          ]
+          Resource = local.artifacts_bucket_arn
+        },
+        {
+          Sid    = "ArtifactsBucketList"
+          Effect = "Allow"
+          Action = [
+            "s3:ListBucket",
+          ]
+          Resource = local.artifacts_bucket_arn
+          Condition = {
+            StringLike = {
+              "s3:prefix" = flatten([
+                for tag in each.value.agent_tags : [
+                  "${local.agent_artifacts_identity_prefixes[each.key][tag]}/",
+                  "${local.agent_artifacts_identity_prefixes[each.key][tag]}/*",
+                ]
+              ])
+            }
+          }
+        },
+        {
+          Sid    = "ArtifactsBucketObjectReadWrite"
+          Effect = "Allow"
+          Action = [
+            "s3:AbortMultipartUpload",
+            "s3:DeleteObject",
+            "s3:GetObject",
+            "s3:ListMultipartUploadParts",
+            "s3:PutObject",
+          ]
+          Resource = [
+            for tag in each.value.agent_tags :
+            "${local.artifacts_bucket_arn}/${local.agent_artifacts_identity_prefixes[each.key][tag]}/*"
+          ]
+        },
+      ],
+      local.artifacts_kms_statement != null ? [local.artifacts_kms_statement] : []
+    )
+  })
+
+  tags = local.tags
+}
+
+# The lifecycle worker signs upload URLs and later reads or deletes artifacts
+# with its own credentials. The connector role receives no artifact access.
+resource "aws_iam_role_policy_attachment" "lifecycle_worker_artifacts" {
+  for_each   = var.agents
+  role       = local.agent_role_names[each.key]
+  policy_arn = aws_iam_policy.artifacts[each.key].arn
 }
 
 ####################################################################
@@ -1389,6 +1497,105 @@ resource "aws_s3_bucket_lifecycle_configuration" "tofu_state" {
     noncurrent_version_expiration {
       noncurrent_days = 90
     }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+####################################################################
+# S3 artifacts bucket
+#
+# Shared across all agents in this module invocation (same account+region).
+# Long-lived customer bucket for data artifacts (imports, exports, and
+# later kinds). prevent_destroy matches that. Not versioned: versioning
+# would retain deleted copies of customer data. The orchestrator deletes
+# completed objects it is done with; the lifecycle rule below only aborts
+# incomplete multipart uploads left behind after process or browser loss.
+#
+# Bucket name format: <s3_artifacts_name_prefix>-<region>-<account_id>
+####################################################################
+resource "aws_s3_bucket" "artifacts" {
+  bucket = "${var.s3_artifacts_name_prefix}-${var.region}-${data.aws_caller_identity.current.account_id}"
+
+  tags = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_policy" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.artifacts.arn,
+          "${aws_s3_bucket.artifacts.arn}/*",
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      },
+    ]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.artifacts]
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
+  count  = var.artifacts_kms_key_arn != null ? 1 : 0
+  bucket = aws_s3_bucket.artifacts.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = var.artifacts_kms_key_arn
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_cors_configuration" "artifacts" {
+  count  = length(var.allowed_origins) > 0 ? 1 : 0
+  bucket = aws_s3_bucket.artifacts.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT"]
+    allowed_origins = var.allowed_origins
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  rule {
+    id     = "abort-incomplete-multipart-uploads"
+    status = "Enabled"
+
+    filter {}
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7

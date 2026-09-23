@@ -92,6 +92,7 @@ run "grants_app_database_observability_permissions" {
   command = plan
 
   variables {
+    allowed_origins = ["https://app.superblocks.com"]
     deployment_type = "eks"
     region          = "us-east-1"
     agents = {
@@ -144,11 +145,11 @@ run "grants_app_database_observability_permissions" {
       try(one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
         statement.Condition.StringEqualsIfExists if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
-        ])["aws:RequestTag/superblocks:owned"], null) == "true" &&
+      ])["aws:RequestTag/superblocks:owned"], null) == "true" &&
       try(one([
         for statement in jsondecode(aws_iam_policy.lifecycle_worker_observability["opa1"].policy).Statement :
         statement.Condition.StringEqualsIfExists if statement.Sid == "CloudWatchTagResourceWithCanonicalOwnership"
-        ])["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
+      ])["aws:RequestTag/aws-apn-id"], null) == "pc:ctelqp437y3cvjkv5rv0z2w4f"
     )
     error_message = "CloudWatch TagResource Allow must require canonical ownership values via StringEqualsIfExists."
   }
@@ -277,6 +278,7 @@ run "reuses_an_existing_monitoring_role" {
   command = plan
 
   variables {
+    allowed_origins              = ["https://app.superblocks.com"]
     deployment_type              = "eks"
     region                       = "us-west-2"
     existing_monitoring_role_arn = "arn:aws:iam::123456789012:role/platform/sb-app-db-enhanced-monitoring"
@@ -317,6 +319,7 @@ run "rejects_a_monitoring_role_outside_the_aws_partition" {
   command = plan
 
   variables {
+    allowed_origins              = ["https://app.superblocks.com"]
     deployment_type              = "eks"
     region                       = "us-gov-west-1"
     existing_monitoring_role_arn = "arn:aws-us-gov:iam::123456789012:role/sb-app-db-enhanced-monitoring"
@@ -336,6 +339,7 @@ run "rejects_a_malformed_monitoring_role_arn" {
   command = plan
 
   variables {
+    allowed_origins              = ["https://app.superblocks.com"]
     deployment_type              = "eks"
     region                       = "us-east-1"
     existing_monitoring_role_arn = "sb-app-db-enhanced-monitoring"
