@@ -304,7 +304,19 @@ resource "aws_iam_role_policy_attachment" "ecr_policy_attachment" {
 
 The [_Task IAM Role_](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html) is different and in addition to the _Task Execution Role_. The `Task IAM Role` is optional, but you will need it if you want to leverage instance credentials you get automatically from the Container Credential Provider to access other AWS APIs via an SDK.
 
-**NOTE**: As of this writing (10/14/2023) instance credentials for Python boto3 doesn't actually work in Superblocks. But a ticket is in process to fix this
+When `superblocks_agent_role_arn` is set, this module passes it to the ECS task definition as the
+[task role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html). ECS then
+injects `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` into the container, and AWS SDKs pick the role up
+through the container credential provider without any further configuration. Nothing else in this
+module needs to change to use it.
+
+**If Python steps cannot see the credentials**, the agent is not forwarding that variable into the
+process that runs your code. The agent only forwards an allow-listed set of environment variables to
+the Python and JavaScript workers, and `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` has to be on that
+list for `boto3` to find the role. That list is a property of the agent image rather than of this
+module, so if you hit this, raise it with Superblocks support; you can also override the list on the
+container using `superblocks_agent_environment_variables`, which is passed straight through to the
+task definition.
 
 To use this, you must:
 
