@@ -120,7 +120,22 @@ variable "physical_module_inputs" {
     `tags` are applied to every database, security group, security-group rule, and parameter group the OPA provisions. The ownership pair `superblocks:owned = "true"` and `aws-apn-id` is always merged over whatever you pass, and the lifecycle worker adds the `ManagedBy`, `AgentName`, and `Vpc` tags its own IAM conditions require.
 
     Enhanced Monitoring is on at a 60 second interval, which RDS only accepts alongside an IAM role it can assume. Pass the prerequisite stack's `enhanced_monitoring_role_arn` output as `monitoring_role_arn`, or set `monitoring_interval = 0` to turn Enhanced Monitoring off.
+
+    Each cluster gets its own security group, created by the lifecycle worker, that admits port 5432 only from `source_security_group_ids` and `allowed_cidr_blocks`. Set at least one. On Fargate pass the ECS task's security group, which the root module publishes as `ecs_security_group_id` (`source_security_group_ids = [module.<root>.ecs_security_group_id]`), or the group you attach through `ecs_security_group_ids` when `create_ecs_sg = false`.
   EOT
+
+  validation {
+    condition = (
+      length(var.physical_module_inputs.source_security_group_ids) +
+      length(var.physical_module_inputs.allowed_cidr_blocks)
+    ) > 0
+    error_message = "physical_module_inputs requires source_security_group_ids or allowed_cidr_blocks; without one the OPA cannot reach the clusters it provisions. On Fargate pass the root module's output: source_security_group_ids = [module.<root>.ecs_security_group_id]."
+  }
+
+  validation {
+    condition     = alltrue([for sg in var.physical_module_inputs.source_security_group_ids : sg != null])
+    error_message = "physical_module_inputs.source_security_group_ids contains null. The root module's ecs_security_group_id output is null when create_ecs_sg = false; pass the group you attach through ecs_security_group_ids instead."
+  }
 
   validation {
     condition = (

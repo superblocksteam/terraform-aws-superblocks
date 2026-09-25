@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### App DB: the data plane must be able to reach its clusters
+
+`app-db` fails the plan when `physical_module_inputs` sets neither
+`source_security_group_ids` nor `allowed_cidr_blocks`, matching the Helm
+chart. Each cluster admits port 5432 only from those two lists, so a caller
+that set neither got clusters the OPA could not connect to. A `null` element in
+`source_security_group_ids` is rejected too; that is what the root module's
+`ecs_security_group_id` output holds when `create_ecs_sg = false`. Callers who
+already pass one of the two lists see no change.
+
+`examples/app-db-fargate` now wires `source_security_group_ids` from the root
+module's `ecs_security_group_id` output. The pre-created group it used to call
+for is not needed; a literal ID of the same group keeps working.
+
 ### App DB prereqs: artifacts bucket, CORS, and worker grants
 
 `app-db-prereqs` provisions `<s3_artifacts_name_prefix>-<region>-<account-id>`
