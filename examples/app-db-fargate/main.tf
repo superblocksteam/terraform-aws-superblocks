@@ -193,11 +193,19 @@ module "app_db_opa1" {
     # or set monitoring_interval = 0 to turn Enhanced Monitoring off.
     monitoring_role_arn = module.app_db_prereqs.enhanced_monitoring_role_arn
 
-    # The OPA ECS task SG — allows it to reach the provisioned database on port
-    # 5432. Must be pre-created and passed here (rather than referencing the root
-    # module's auto-created ECS SG) because app-db feeds into the root module,
-    # making a back-reference a dependency cycle.
-    source_security_group_ids = ["sg-your-opa-task-sg"]
+    # Security groups allowed to reach the provisioned databases on port 5432.
+    # Required (or allowed_cidr_blocks): every cluster gets its own security
+    # group, created by the lifecycle worker, and this is its only ingress.
+    #
+    # On Fargate this is the ECS task's security group, which the root module
+    # creates (create_ecs_sg = true) and publishes as ecs_security_group_id.
+    # Referencing it here is not a cycle even though the root module consumes
+    # this module's ecs_env_vars: the security group depends only on the VPC and
+    # load balancer inputs, not on the container environment.
+    #
+    # If you set create_ecs_sg = false, pass the security group you attach
+    # through ecs_security_group_ids instead; the output is null in that case.
+    source_security_group_ids = [module.superblocks_opa1.ecs_security_group_id]
   }
 
   # Optional: override the pool capacity. Default is 100 logical databases per
@@ -239,10 +247,9 @@ module "superblocks_opa1" {
   superblocks_agent_role_arn              = module.app_db_prereqs.agents["opa1"].lifecycle_worker_role_arn
   superblocks_agent_environment_variables = module.app_db_opa1.ecs_env_vars
 
-  # Attach the pre-created OPA task SG so the ECS task ENI is in the same SG
-  # referenced by source_security_group_ids in Step 2. This coexists with the
-  # module's auto-created ECS SG (create_ecs_sg = true).
-  ecs_security_group_ids = ["sg-your-opa-task-sg"]
+  # No security group wiring is needed here: the task runs in the security
+  # group this module creates, and Step 2 passes that group's ID to the
+  # databases as their ingress source.
 }
 
 output "agents" {

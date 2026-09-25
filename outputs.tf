@@ -15,7 +15,8 @@ output "lb_security_group_id" {
 }
 
 output "ecs_security_group_id" {
-  value = module.ecs.ecs_security_group_id
+  value       = module.ecs.ecs_security_group_id
+  description = "Security group the ECS task runs in when create_ecs_sg = true, null otherwise. Pass it as physical_module_inputs.source_security_group_ids in modules/app-db so the databases the OPA provisions admit traffic from the task."
 }
 
 output "lb_dns_name" {
