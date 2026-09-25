@@ -193,18 +193,10 @@ module "app_db_opa1" {
     # or set monitoring_interval = 0 to turn Enhanced Monitoring off.
     monitoring_role_arn = module.app_db_prereqs.enhanced_monitoring_role_arn
 
-    # Security groups allowed to reach the provisioned databases on port 5432.
-    # Required (or allowed_cidr_blocks): every cluster gets its own security
-    # group, created by the lifecycle worker, and this is its only ingress.
-    #
-    # On Fargate this is the ECS task's security group, which the root module
-    # creates (create_ecs_sg = true) and publishes as ecs_security_group_id.
-    # Referencing it here is not a cycle even though the root module consumes
-    # this module's ecs_env_vars: the security group depends only on the VPC and
-    # load balancer inputs, not on the container environment.
-    #
-    # If you set create_ecs_sg = false, pass the security group you attach
-    # through ecs_security_group_ids instead; the output is null in that case.
+    # The ECS task's security group, created by the root module in Step 3. Each
+    # cluster admits port 5432 only from the groups listed here (or from
+    # allowed_cidr_blocks). If you set create_ecs_sg = false, pass the group you
+    # attach through ecs_security_group_ids instead; the output is null then.
     source_security_group_ids = [module.superblocks_opa1.ecs_security_group_id]
   }
 
@@ -246,10 +238,6 @@ module "superblocks_opa1" {
   superblocks_agent_tags                  = module.app_db_opa1.superblocks_agent_tags
   superblocks_agent_role_arn              = module.app_db_prereqs.agents["opa1"].lifecycle_worker_role_arn
   superblocks_agent_environment_variables = module.app_db_opa1.ecs_env_vars
-
-  # No security group wiring is needed here: the task runs in the security
-  # group this module creates, and Step 2 passes that group's ID to the
-  # databases as their ingress source.
 }
 
 output "agents" {

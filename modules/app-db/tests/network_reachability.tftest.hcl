@@ -1,10 +1,7 @@
-# The data plane must be able to reach the clusters this module configures.
-# The physical modules open port 5432 only to source_security_group_ids and
+# Each cluster admits port 5432 only from source_security_group_ids and
 # allowed_cidr_blocks, and both default to empty, so a caller who sets neither
-# provisions clusters nothing can connect to. The Helm chart already fails the
-# render in that case (helm/agent: "physicalModuleInputs requires
-# source_security_group_ids or allowed_cidr_blocks"); this module fails the plan
-# the same way so Fargate does not discover the omission at the first query.
+# gets clusters the OPA cannot reach. The Helm chart already fails the render in
+# that case; this module fails the plan the same way.
 
 mock_provider "aws" {
   mock_data "aws_caller_identity" {

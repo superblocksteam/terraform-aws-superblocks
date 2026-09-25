@@ -4,26 +4,17 @@
 
 ### App DB: the data plane must be able to reach its clusters
 
-`app-db` now fails the plan when `physical_module_inputs` sets neither
+`app-db` fails the plan when `physical_module_inputs` sets neither
 `source_security_group_ids` nor `allowed_cidr_blocks`, matching the Helm
-chart. Every cluster the lifecycle worker provisions gets its own security
-group whose only ingress is those two lists, so a caller that set neither
-provisioned clusters the OPA could not connect to and found out at the first
-query. A `null` element in `source_security_group_ids` is rejected as well;
-that is what the root module's `ecs_security_group_id` output holds when
-`create_ecs_sg = false`.
+chart. Each cluster admits port 5432 only from those two lists, so a caller
+that set neither got clusters the OPA could not connect to. A `null` element in
+`source_security_group_ids` is rejected too; that is what the root module's
+`ecs_security_group_id` output holds when `create_ecs_sg = false`. Callers who
+already pass one of the two lists see no change.
 
-Callers who already pass one of the two lists see no change.
-
-The `examples/app-db-fargate` example now wires
-`source_security_group_ids = [module.<root>.ecs_security_group_id]` directly
-instead of a pre-created placeholder group. Earlier guidance called that
-reference a dependency cycle because the root module consumes `ecs_env_vars`
-from this module. It is not one: Terraform tracks dependencies per output and
-per variable, and the ECS security group depends only on the VPC and load
-balancer inputs, not on the container environment. Existing deployments that
-pasted the group ID as a literal, or attached a second group for this purpose,
-keep working and can switch to the output reference at any time.
+`examples/app-db-fargate` now wires `source_security_group_ids` from the root
+module's `ecs_security_group_id` output. The pre-created group it used to call
+for is not needed; a literal ID of the same group keeps working.
 
 ### App DB prereqs: artifacts bucket, CORS, and worker grants
 

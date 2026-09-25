@@ -121,7 +121,7 @@ variable "physical_module_inputs" {
 
     Enhanced Monitoring is on at a 60 second interval, which RDS only accepts alongside an IAM role it can assume. Pass the prerequisite stack's `enhanced_monitoring_role_arn` output as `monitoring_role_arn`, or set `monitoring_interval = 0` to turn Enhanced Monitoring off.
 
-    Every cluster gets its own security group, created by the lifecycle worker, that admits port 5432 only from `source_security_group_ids` and `allowed_cidr_blocks`. At least one must name the data plane, or the OPA cannot connect to the databases it provisions. On Fargate that is the ECS task's security group: wire the root module's `ecs_security_group_id` output (`source_security_group_ids = [module.<root>.ecs_security_group_id]`), or the group you pass as `ecs_security_group_ids` when `create_ecs_sg = false`. The reference from this module to the root module's output is not a cycle: the security group depends only on the VPC and load balancer inputs, not on the container environment this module renders.
+    Each cluster gets its own security group, created by the lifecycle worker, that admits port 5432 only from `source_security_group_ids` and `allowed_cidr_blocks`. Set at least one. On Fargate pass the ECS task's security group, which the root module publishes as `ecs_security_group_id` (`source_security_group_ids = [module.<root>.ecs_security_group_id]`), or the group you attach through `ecs_security_group_ids` when `create_ecs_sg = false`.
   EOT
 
   validation {
@@ -129,12 +129,12 @@ variable "physical_module_inputs" {
       length(var.physical_module_inputs.source_security_group_ids) +
       length(var.physical_module_inputs.allowed_cidr_blocks)
     ) > 0
-    error_message = "physical_module_inputs requires source_security_group_ids or allowed_cidr_blocks. Without one, the clusters this OPA provisions admit no traffic on port 5432 and the OPA cannot connect to them. Pass the root module's ecs_security_group_id output: source_security_group_ids = [module.<root>.ecs_security_group_id]."
+    error_message = "physical_module_inputs requires source_security_group_ids or allowed_cidr_blocks; without one the OPA cannot reach the clusters it provisions. On Fargate pass the root module's output: source_security_group_ids = [module.<root>.ecs_security_group_id]."
   }
 
   validation {
     condition     = alltrue([for sg in var.physical_module_inputs.source_security_group_ids : sg != null])
-    error_message = "physical_module_inputs.source_security_group_ids contains null. The root module's ecs_security_group_id output is null when create_ecs_sg = false; pass the security group you attach through ecs_security_group_ids instead."
+    error_message = "physical_module_inputs.source_security_group_ids contains null. The root module's ecs_security_group_id output is null when create_ecs_sg = false; pass the group you attach through ecs_security_group_ids instead."
   }
 
   validation {
