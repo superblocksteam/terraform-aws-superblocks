@@ -11,6 +11,10 @@ provider "aws" {
 # in Step 3 below into your existing terraform-aws-superblocks module block
 # (including the superblocks_agent_image pin).
 #
+# Step 2 references module.superblocks_opa1.ecs_security_group_id. Replace
+# module.superblocks_opa1 there with the name of your existing
+# terraform-aws-superblocks module block, or plan fails on an undeclared module.
+#
 # IMPORTANT: pin superblocks_agent_image to v1.46.0 or later. modules/app-db
 # emits the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG shape that older images
 # reject at startup with "database lifecycle config entries are required".
