@@ -138,6 +138,11 @@ variable "physical_module_inputs" {
   }
 
   validation {
+    condition     = alltrue([for cidr in var.physical_module_inputs.allowed_cidr_blocks : cidr != null])
+    error_message = "physical_module_inputs.allowed_cidr_blocks contains null. A null entry is not a usable ingress source."
+  }
+
+  validation {
     condition = (
       var.physical_module_inputs.monitoring_interval == 0 ||
       var.physical_module_inputs.monitoring_role_arn != null

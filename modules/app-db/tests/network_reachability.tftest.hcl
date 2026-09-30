@@ -52,6 +52,24 @@ run "a_null_security_group_id_is_rejected" {
   expect_failures = [var.physical_module_inputs]
 }
 
+run "a_null_cidr_block_is_rejected" {
+  command = plan
+
+  # Same shape as a null security group: the list is non-empty, so the length
+  # check counts it as ingress, and the value is encoded into the lifecycle
+  # config with nothing the cluster can admit.
+  variables {
+    physical_module_inputs = {
+      allowed_cidr_blocks = [null]
+      monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
+      subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
+      vpc_id              = "vpc-0123456789abcdef0"
+    }
+  }
+
+  expect_failures = [var.physical_module_inputs]
+}
+
 run "the_data_plane_security_group_reaches_the_physical_module" {
   command = plan
 

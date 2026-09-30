@@ -7,10 +7,12 @@
 `app-db` fails the plan when `physical_module_inputs` sets neither
 `source_security_group_ids` nor `allowed_cidr_blocks`, matching the Helm
 chart. Each cluster admits port 5432 only from those two lists, so a caller
-that set neither got clusters the OPA could not connect to. A `null` element in
-`source_security_group_ids` is rejected too; that is what the root module's
-`ecs_security_group_id` output holds when `create_ecs_sg = false`. Callers who
-already pass one of the two lists see no change.
+that set neither got clusters the OPA could not connect to. A `null` element
+in either `source_security_group_ids` or `allowed_cidr_blocks` is rejected
+too. For security groups, that is what the root module's
+`ecs_security_group_id` output holds when `create_ecs_sg = false`. A null
+CIDR is the same hole: the list is non-empty, so a length check would count
+it. Callers who already pass one of the two lists see no change.
 
 `examples/app-db-fargate` now wires `source_security_group_ids` from the root
 module's `ecs_security_group_id` output. The pre-created group it used to call
