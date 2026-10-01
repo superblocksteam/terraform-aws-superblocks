@@ -190,6 +190,35 @@ variable "kms_key_arn" {
   description = "ARN of the customer-managed KMS key for the OpenTofu state bucket. When provided, the bucket is configured with SSE-KMS using this key and lifecycle-worker IAM is granted KMS access only on this key. When null, the bucket uses AWS account-default encryption (SSE-S3) and no state-bucket KMS IAM statement is attached."
 }
 
+variable "permissions_boundary" {
+  type        = string
+  default     = null
+  description = <<-EOT
+    ARN of an IAM permissions boundary to attach, at creation, to every IAM role this module
+    creates: each lifecycle worker role (agents without existing_role_name), each connector role,
+    and the Enhanced Monitoring role (when existing_monitoring_role_arn is null). Roles supplied
+    through existing_role_name or existing_monitoring_role_arn are not modified. Null (default)
+    creates the roles with no boundary.
+
+    Set it when the account requires new roles to carry a specific boundary, for example when a
+    boundary on the deploying principal denies iam:CreateRole unless the new role names it.
+
+    A permissions boundary caps a role to the intersection of its own policies and the boundary,
+    so the boundary must allow every action this module grants: sts:AssumeRole on the connector,
+    rds-db:connect, the lifecycle worker's RDS, EC2, Secrets Manager, KMS, S3, CloudWatch Logs,
+    iam:CreateServiceLinkedRole and iam:PassRole statements, and AmazonRDSEnhancedMonitoringRole.
+    A boundary that omits one produces a role that creates cleanly and then fails at runtime with
+    AccessDenied. Boundaries of this kind usually also deny iam:PutRolePermissionsBoundary and
+    iam:DeleteRolePermissionsBoundary, so set this before the roles are first created and treat it
+    as permanent afterwards.
+  EOT
+
+  validation {
+    condition     = var.permissions_boundary == null || can(regex("^arn:aws:iam::([0-9]{12}|aws):policy/([A-Za-z0-9+=,.@_-]+/)*[A-Za-z0-9+=,.@_-]+$", var.permissions_boundary))
+    error_message = "permissions_boundary must be a concrete IAM managed policy ARN in the aws partition (arn:aws:iam::<account-id>:policy/<name> or arn:aws:iam::aws:policy/<name>), or null. The rest of this module hardcodes arn:aws:, so aws-us-gov and aws-cn ARNs are not supported."
+  }
+}
+
 variable "existing_monitoring_role_arn" {
   type        = string
   default     = null
