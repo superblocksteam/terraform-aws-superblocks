@@ -20,9 +20,10 @@ variables {
   state_bucket_name  = "sb-app-db-us-east-1-123456789012"
 
   physical_module_inputs = {
-    monitoring_role_arn = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
-    subnet_ids          = ["subnet-0000000000000001", "subnet-0000000000000002"]
-    vpc_id              = "vpc-0123456789abcdef0"
+    monitoring_role_arn       = "arn:aws:iam::123456789012:role/sb-app-db-enhanced-monitoring"
+    source_security_group_ids = ["sg-0123456789abcdef0"]
+    subnet_ids                = ["subnet-0000000000000001", "subnet-0000000000000002"]
+    vpc_id                    = "vpc-0123456789abcdef0"
   }
 }
 

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### App DB: the data plane must be able to reach its clusters
+
+`app-db` fails the plan when `physical_module_inputs` sets neither
+`source_security_group_ids` nor `allowed_cidr_blocks`, matching the Helm
+chart. Each cluster admits port 5432 only from those two lists, so a caller
+that set neither got clusters the OPA could not connect to. A `null` element
+in either `source_security_group_ids` or `allowed_cidr_blocks` is rejected
+too. For security groups, that is what the root module's
+`ecs_security_group_id` output holds when `create_ecs_sg = false`. A null
+CIDR is the same hole: the list is non-empty, so a length check would count
+it. Callers who already pass one of the two lists see no change.
+
+`examples/app-db-fargate` now wires `source_security_group_ids` from the root
+module's `ecs_security_group_id` output. The pre-created group it used to call
+for is not needed; a literal ID of the same group keeps working.
+
 ### App DB prereqs: optional permissions boundary on created roles
 
 `app-db-prereqs` takes an optional `permissions_boundary` (an IAM managed policy

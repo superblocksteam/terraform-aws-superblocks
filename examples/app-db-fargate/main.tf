@@ -11,6 +11,10 @@ provider "aws" {
 # in Step 3 below into your existing terraform-aws-superblocks module block
 # (including the superblocks_agent_image pin).
 #
+# Step 2 references module.superblocks_opa1.ecs_security_group_id. Replace
+# module.superblocks_opa1 there with the name of your existing
+# terraform-aws-superblocks module block, or plan fails on an undeclared module.
+#
 # IMPORTANT: pin superblocks_agent_image to v1.46.0 or later. modules/app-db
 # emits the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG shape that older images
 # reject at startup with "database lifecycle config entries are required".
@@ -193,11 +197,11 @@ module "app_db_opa1" {
     # or set monitoring_interval = 0 to turn Enhanced Monitoring off.
     monitoring_role_arn = module.app_db_prereqs.enhanced_monitoring_role_arn
 
-    # The OPA ECS task SG — allows it to reach the provisioned database on port
-    # 5432. Must be pre-created and passed here (rather than referencing the root
-    # module's auto-created ECS SG) because app-db feeds into the root module,
-    # making a back-reference a dependency cycle.
-    source_security_group_ids = ["sg-your-opa-task-sg"]
+    # The ECS task's security group, created by the root module in Step 3. Each
+    # cluster admits port 5432 only from the groups listed here (or from
+    # allowed_cidr_blocks). If you set create_ecs_sg = false, pass the group you
+    # attach through ecs_security_group_ids instead; the output is null then.
+    source_security_group_ids = [module.superblocks_opa1.ecs_security_group_id]
   }
 
   # Optional: override the pool capacity. Default is 100 logical databases per
@@ -238,11 +242,6 @@ module "superblocks_opa1" {
   superblocks_agent_tags                  = module.app_db_opa1.superblocks_agent_tags
   superblocks_agent_role_arn              = module.app_db_prereqs.agents["opa1"].lifecycle_worker_role_arn
   superblocks_agent_environment_variables = module.app_db_opa1.ecs_env_vars
-
-  # Attach the pre-created OPA task SG so the ECS task ENI is in the same SG
-  # referenced by source_security_group_ids in Step 2. This coexists with the
-  # module's auto-created ECS SG (create_ecs_sg = true).
-  ecs_security_group_ids = ["sg-your-opa-task-sg"]
 }
 
 output "agents" {
