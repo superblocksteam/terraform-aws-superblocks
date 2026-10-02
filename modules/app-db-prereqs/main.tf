@@ -284,8 +284,9 @@ locals {
 resource "aws_iam_role" "lifecycle_worker" {
   for_each = { for k, agent in var.agents : k => agent if agent.existing_role_name == null }
 
-  name               = "${var.iam_name_prefix}-${each.key}-lifecycle-worker-${var.region}"
-  assume_role_policy = local.lifecycle_worker_assume_role_policies[each.key]
+  name                 = "${var.iam_name_prefix}-${each.key}-lifecycle-worker-${var.region}"
+  assume_role_policy   = local.lifecycle_worker_assume_role_policies[each.key]
+  permissions_boundary = var.permissions_boundary
 
   tags = local.tags
 }
@@ -1292,7 +1293,8 @@ resource "aws_iam_role" "enhanced_monitoring" {
     ]
   })
 
-  description = "RDS Enhanced Monitoring role shared by every app-database instance and cluster"
+  description          = "RDS Enhanced Monitoring role shared by every app-database instance and cluster"
+  permissions_boundary = var.permissions_boundary
 
   tags = merge(local.tags, {
     Purpose = "RDS Enhanced Monitoring for app databases"
@@ -1337,6 +1339,8 @@ resource "aws_iam_role" "connector" {
       }
     ]
   })
+
+  permissions_boundary = var.permissions_boundary
 
   tags = local.tags
 }

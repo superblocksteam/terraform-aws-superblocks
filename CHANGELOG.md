@@ -18,6 +18,26 @@ it. Callers who already pass one of the two lists see no change.
 module's `ecs_security_group_id` output. The pre-created group it used to call
 for is not needed; a literal ID of the same group keeps working.
 
+### App DB prereqs: optional permissions boundary on created roles
+
+`app-db-prereqs` takes an optional `permissions_boundary` (an IAM managed policy
+ARN, default `null`). When set, it is attached at creation to every role the
+module creates: each lifecycle worker role, each connector role, and the
+Enhanced Monitoring role. Roles supplied through `existing_role_name` or
+`existing_monitoring_role_arn` are left unchanged. With the default, nothing
+changes and existing deployments plan no diff.
+
+This is for accounts that require new roles to carry a named boundary, where
+`iam:CreateRole` is denied for any role created without it. Two constraints
+apply. The boundary caps each role to the intersection of its policies and the
+boundary, so it must allow everything the module grants (`sts:AssumeRole` on the
+connector, `rds-db:connect`, and the lifecycle worker's RDS, EC2, Secrets
+Manager, KMS, S3, CloudWatch Logs, `iam:CreateServiceLinkedRole` and
+`iam:PassRole` statements). Otherwise the roles create cleanly and then fail at
+runtime with AccessDenied. And such boundaries usually also deny
+`iam:PutRolePermissionsBoundary`, so set the value before the roles are first
+created and treat it as permanent.
+
 ### App DB prereqs: artifacts bucket, CORS, and worker grants
 
 `app-db-prereqs` provisions `<s3_artifacts_name_prefix>-<region>-<account-id>`
