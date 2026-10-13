@@ -30,7 +30,7 @@ variable "agents" {
     key_prefix             = optional(string)
     rds_secret_kms_key_arn = optional(string)
   }))
-  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket and one artifacts bucket per module invocation. State access is scoped to key_prefix (default app-db/<agent>). artifacts_key_prefix is an optional namespace passed to the OPA as artifacts.keyPrefix when more than one agent shares the bucket (unset for a typical OPA). Object keys are [<that prefix>/]<profileToken>/<kind>/...; Terraform does not name the kind. Pass agents[<name>].key_prefix into the app-db module."
+  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket and, when create_artifacts_bucket is true, one artifacts bucket per module invocation. State access is scoped to key_prefix (default app-db/<agent>). artifacts_key_prefix is an optional namespace passed to the OPA as artifacts.keyPrefix when more than one agent shares the bucket (unset for a typical OPA). Object keys are [<that prefix>/]<profileToken>/<kind>/...; Terraform does not name the kind. Pass agents[<name>].key_prefix into the app-db module."
 
   validation {
     condition     = length(var.agents) > 0
@@ -148,15 +148,21 @@ variable "s3_name_prefix" {
   }
 }
 
-# Like s3_name_prefix for the state bucket, this value identifies the bucket
-# owned by one module invocation. Independent invocations in the same account
-# and region must use distinct values; separate Terraform states must not
-# manage the same bucket. Both bucket names freeze independently after the
-# first apply because both resources carry prevent_destroy.
+variable "create_artifacts_bucket" {
+  type        = bool
+  default     = false
+  description = "Whether to create the shared artifacts bucket and the lifecycle-worker policy that grants access to it. Defaults to false, which leaves artifacts_bucket_name null and creates none of the bucket's dependents. Set true before the first apply that should store imports and exports. The bucket has prevent_destroy, so a later apply cannot delete it. A deployment that already created the bucket must leave this true."
+}
+
+# Like s3_name_prefix for the state bucket, this value identifies the artifacts
+# bucket owned by one module invocation when create_artifacts_bucket is true.
+# Independent invocations in the same account and region must use distinct
+# values; separate Terraform states must not manage the same bucket. The name
+# freezes after the first apply because the bucket carries prevent_destroy.
 variable "s3_artifacts_name_prefix" {
   type        = string
   default     = "sb-data-artifacts"
-  description = "Prefix applied to the artifacts bucket created by this module. Defaults to 'sb-data-artifacts'. Max 20 lowercase alphanumeric characters or hyphens. Separate from s3_name_prefix so each instantiation in an account can pick a unique name before the first apply; both buckets then freeze independently via prevent_destroy. If the deployer role can only CreateBucket under a specific name prefix, set this to a value that matches that allowlist before the first apply."
+  description = "Prefix applied to the artifacts bucket when create_artifacts_bucket is true. Defaults to 'sb-data-artifacts'. Max 20 lowercase alphanumeric characters or hyphens. Separate from s3_name_prefix so each instantiation in an account can pick a unique name before the first apply; the bucket then freezes via prevent_destroy. If the deployer role can only CreateBucket under a specific name prefix, set this to a value that matches that allowlist before the first apply."
 
   validation {
     condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,18}[a-z0-9])?$", var.s3_artifacts_name_prefix))
@@ -164,10 +170,21 @@ variable "s3_artifacts_name_prefix" {
   }
 }
 
+variable "superblocks_agent_data_domain" {
+  type        = string
+  default     = "app.superblocks.com"
+  description = "The domain name for the specific Superblocks region that hosts your data. When the artifacts bucket is created and allowed_origins is empty, CORS allows https://<this domain>."
+
+  validation {
+    condition     = contains(["app.superblocks.com", "eu.superblocks.com"], var.superblocks_agent_data_domain)
+    error_message = "The data domain is invalid. Please use 'app.superblocks.com' or 'eu.superblocks.com'."
+  }
+}
+
 variable "allowed_origins" {
   type        = list(string)
   default     = []
-  description = "Browser origins allowed to PUT objects to the artifacts bucket (CORS). The browser must be able to read the ETag of each uploaded part, so this list has to include every origin that hosts the Superblocks UI for this account. A non-empty list requires the deployer role to have s3:PutBucketCORS on the artifacts bucket."
+  description = "Explicit HTTPS browser origins allowed to PUT objects to the artifacts bucket. When non-empty, these origins replace https://<superblocks_agent_data_domain>. The browser must be able to read the ETag of each uploaded part. Creating the artifacts bucket configures CORS, which requires s3:PutBucketCORS on that bucket."
 
   validation {
     condition = alltrue([
@@ -178,10 +195,16 @@ variable "allowed_origins" {
   }
 }
 
+variable "enable_public_access_blocks" {
+  type        = bool
+  default     = true
+  description = "Whether to create the bucket-level public access blocks on the OpenTofu state bucket and, when the artifacts bucket is created, on that bucket too. Defaults to true and sets all four flags. Set false only where an organization policy denies s3:PutBucketPublicAccessBlock and public access is already blocked for the account. Switching an existing deployment from true to false deletes those blocks. If that delete is denied, remove the blocks from state before applying."
+}
+
 variable "artifacts_kms_key_arn" {
   type        = string
   default     = null
-  description = "ARN of the customer-managed KMS key for the artifacts bucket (data artifacts such as imports, exports, and later kinds). When provided, that bucket uses SSE-KMS with this key and lifecycle-worker IAM is granted kms:Decrypt, kms:DescribeKey, and kms:GenerateDataKey on this key. When null, the bucket uses AWS account-default encryption (SSE-S3) and no artifacts KMS IAM statement is attached. Independent of kms_key_arn so customer data is not decryptable with the state key."
+  description = "ARN of the customer-managed KMS key for the artifacts bucket (data artifacts such as imports, exports, and later kinds). When provided, that bucket uses SSE-KMS with this key and a bucket key, and lifecycle-worker IAM is granted kms:Decrypt, kms:DescribeKey, and kms:GenerateDataKey on this key. When null, the bucket uses SSE-S3 (AES256) and no artifacts KMS IAM statement is attached. Either way, SSE-C is blocked. Independent of kms_key_arn so customer data is not decryptable with the state key."
 }
 
 variable "kms_key_arn" {

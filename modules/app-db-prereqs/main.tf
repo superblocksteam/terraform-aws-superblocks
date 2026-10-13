@@ -115,7 +115,9 @@ locals {
   # source of truth: it backs both the IAM statements below and the
   # agents[].key_prefix output the app-db module consumes.
   # ----------------------------------------------------------------
-  state_bucket_arn = aws_s3_bucket.tofu_state.arn
+  # Build the ARN from the bucket name. The name is known during plan; the
+  # provider's arn attribute is not, until apply.
+  state_bucket_arn = "arn:aws:s3:::${aws_s3_bucket.tofu_state.bucket}"
 
   agent_state_key_prefixes = {
     for k, agent in var.agents : k => coalesce(agent.key_prefix, "app-db/${k}")
@@ -156,7 +158,15 @@ locals {
   # no re-apply. Object keys:
   # [<keyPrefix>/]<profileToken>/<kind>/...
   # ----------------------------------------------------------------
-  artifacts_bucket_arn = aws_s3_bucket.artifacts.arn
+  # Build the ARN from the bucket name. The name is known during plan; the
+  # provider's arn attribute is not, until apply.
+  artifacts_bucket_arn = one([
+    for name in aws_s3_bucket.artifacts[*].bucket : "arn:aws:s3:::${name}"
+  ])
+
+  # Empty allowed_origins uses the UI host for superblocks_agent_data_domain.
+  # A caller list replaces that host, including for a hostname outside those two domains.
+  artifacts_cors_origins = length(var.allowed_origins) > 0 ? var.allowed_origins : ["https://${var.superblocks_agent_data_domain}"]
 
   agent_artifacts_key_prefixes = {
     for k, agent in var.agents : k => agent.artifacts_key_prefix == null ? "" : agent.artifacts_key_prefix
@@ -1376,7 +1386,7 @@ resource "aws_iam_role_policy_attachment" "connector" {
 }
 
 resource "aws_iam_policy" "artifacts" {
-  for_each = var.agents
+  for_each = var.create_artifacts_bucket ? var.agents : {}
 
   name        = "${var.iam_name_prefix}-${each.key}-artifacts"
   description = "Allows the ${each.key} lifecycle worker to manage data artifacts under its profile tokens."
@@ -1437,7 +1447,7 @@ resource "aws_iam_policy" "artifacts" {
 # The lifecycle worker signs upload URLs and later reads or deletes artifacts
 # with its own credentials. The connector role receives no artifact access.
 resource "aws_iam_role_policy_attachment" "lifecycle_worker_artifacts" {
-  for_each   = var.agents
+  for_each   = var.create_artifacts_bucket ? var.agents : {}
   role       = local.agent_role_names[each.key]
   policy_arn = aws_iam_policy.artifacts[each.key].arn
 }
@@ -1470,6 +1480,8 @@ resource "aws_s3_bucket_versioning" "tofu_state" {
 }
 
 resource "aws_s3_bucket_public_access_block" "tofu_state" {
+  count = var.enable_public_access_blocks ? 1 : 0
+
   bucket = aws_s3_bucket.tofu_state.id
 
   block_public_acls       = true
@@ -1519,8 +1531,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "tofu_state" {
 # incomplete multipart uploads left behind after process or browser loss.
 #
 # Bucket name format: <s3_artifacts_name_prefix>-<region>-<account_id>
+# Created only when create_artifacts_bucket is true.
 ####################################################################
 resource "aws_s3_bucket" "artifacts" {
+  count = var.create_artifacts_bucket ? 1 : 0
+
   bucket = "${var.s3_artifacts_name_prefix}-${var.region}-${data.aws_caller_identity.current.account_id}"
 
   tags = local.tags
@@ -1531,7 +1546,9 @@ resource "aws_s3_bucket" "artifacts" {
 }
 
 resource "aws_s3_bucket_public_access_block" "artifacts" {
-  bucket = aws_s3_bucket.artifacts.id
+  count = var.create_artifacts_bucket && var.enable_public_access_blocks ? 1 : 0
+
+  bucket = aws_s3_bucket.artifacts[0].bucket
 
   block_public_acls       = true
   block_public_policy     = true
@@ -1540,7 +1557,9 @@ resource "aws_s3_bucket_public_access_block" "artifacts" {
 }
 
 resource "aws_s3_bucket_policy" "artifacts" {
-  bucket = aws_s3_bucket.artifacts.id
+  count = var.create_artifacts_bucket ? 1 : 0
+
+  bucket = aws_s3_bucket.artifacts[0].bucket
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -1551,8 +1570,8 @@ resource "aws_s3_bucket_policy" "artifacts" {
         Principal = "*"
         Action    = "s3:*"
         Resource = [
-          aws_s3_bucket.artifacts.arn,
-          "${aws_s3_bucket.artifacts.arn}/*",
+          local.artifacts_bucket_arn,
+          "${local.artifacts_bucket_arn}/*",
         ]
         Condition = {
           Bool = {
@@ -1567,33 +1586,35 @@ resource "aws_s3_bucket_policy" "artifacts" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
-  count  = var.artifacts_kms_key_arn != null ? 1 : 0
-  bucket = aws_s3_bucket.artifacts.id
+  count  = var.create_artifacts_bucket ? 1 : 0
+  bucket = aws_s3_bucket.artifacts[0].bucket
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
+      sse_algorithm     = var.artifacts_kms_key_arn == null ? "AES256" : "aws:kms"
       kms_master_key_id = var.artifacts_kms_key_arn
     }
-    bucket_key_enabled = true
+    blocked_encryption_types = ["SSE-C"]
+    bucket_key_enabled       = var.artifacts_kms_key_arn != null
   }
 }
 
 resource "aws_s3_bucket_cors_configuration" "artifacts" {
-  count  = length(var.allowed_origins) > 0 ? 1 : 0
-  bucket = aws_s3_bucket.artifacts.id
+  count  = var.create_artifacts_bucket ? 1 : 0
+  bucket = aws_s3_bucket.artifacts[0].bucket
 
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["PUT"]
-    allowed_origins = var.allowed_origins
+    allowed_origins = local.artifacts_cors_origins
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
   }
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
-  bucket = aws_s3_bucket.artifacts.id
+  count  = var.create_artifacts_bucket ? 1 : 0
+  bucket = aws_s3_bucket.artifacts[0].bucket
 
   rule {
     id     = "abort-incomplete-multipart-uploads"

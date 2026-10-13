@@ -198,7 +198,36 @@ locals {
     "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:rds!cluster-",
   ]
 
-  ecs_env_vars = [
+  # Match the Helm chart: emit artifacts env only when the bucket is set, and
+  # omit key prefix and KMS when those values are empty.
+  artifacts_bucket_set = var.artifacts_bucket_name != null && trimspace(var.artifacts_bucket_name) != ""
+
+  artifacts_env_vars = !local.artifacts_bucket_set ? [] : concat(
+    [
+      {
+        name  = "SUPERBLOCKS_ARTIFACTS_BUCKET"
+        value = var.artifacts_bucket_name
+      },
+      {
+        name  = "SUPERBLOCKS_ARTIFACTS_REGION"
+        value = var.region
+      },
+    ],
+    var.artifacts_key_prefix == null || trimspace(var.artifacts_key_prefix) == "" ? [] : [
+      {
+        name  = "SUPERBLOCKS_ARTIFACTS_KEY_PREFIX"
+        value = var.artifacts_key_prefix
+      },
+    ],
+    var.artifacts_kms_key_arn == null || trimspace(var.artifacts_kms_key_arn) == "" ? [] : [
+      {
+        name  = "SUPERBLOCKS_ARTIFACTS_KMS_KEY_ARN"
+        value = var.artifacts_kms_key_arn
+      },
+    ],
+  )
+
+  ecs_env_vars = concat([
     {
       name  = "SUPERBLOCKS_ORCHESTRATOR_DATABASE_LIFECYCLE_WORKER_ENABLED"
       value = "true"
@@ -252,5 +281,5 @@ locals {
       name  = "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
       value = jsonencode(local.lifecycle_config)
     },
-  ]
+  ], local.artifacts_env_vars)
 }

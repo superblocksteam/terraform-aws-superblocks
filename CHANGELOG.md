@@ -40,22 +40,54 @@ created and treat it as permanent.
 
 ### App DB prereqs: artifacts bucket, CORS, and worker grants
 
-`app-db-prereqs` provisions `<s3_artifacts_name_prefix>-<region>-<account-id>`
+`app-db-prereqs` can provision `<s3_artifacts_name_prefix>-<region>-<account-id>`
 beside the OpenTofu state bucket, with `prevent_destroy` and no versioning.
-A bucket policy denies requests that are not HTTPS. When explicit HTTPS
-`allowed_origins` are supplied, CORS exposes `ETag` for
-multipart uploads. Completed objects do not expire: the orchestrator deletes
-objects it is done with. A seven-day S3 lifecycle safety net only aborts
-incomplete multipart uploads and their orphaned parts.
+`create_artifacts_bucket` defaults to `false`. When it is false, the module
+creates no artifacts bucket, public access block, bucket policy, encryption,
+CORS, lifecycle rule, or lifecycle-worker artifacts policy, and
+`artifacts_bucket_name` is null. Set it to `true` before the first apply that
+should store imports and exports. A deployment that already created the bucket
+must leave it `true`: `prevent_destroy` blocks a later apply from deleting it.
+`moved` blocks keep an existing bucket, public access block, bucket policy, and
+lifecycle rule when the variable stays true.
 
-A dedicated artifacts IAM policy is attached only to each lifecycle-worker
-role so connector roles remain limited to `rds-db:connect`. The worker can
+A bucket policy denies requests that are not HTTPS. `enable_public_access_blocks`
+defaults to `true` and creates the public access block on the OpenTofu state
+bucket and, when the artifacts bucket exists, on that bucket too. All four
+flags are set. Set the variable to `false` only where an organization policy
+denies `s3:PutBucketPublicAccessBlock` and the account already blocks public
+access. A `moved` block keeps an existing state-bucket block at its new
+address when the variable stays `true`, so that apply does not replace it.
+Switching an existing deployment from `true` to `false` deletes the
+bucket-level blocks. If that delete is denied, remove the blocks from state
+before applying.
+
+When the artifacts bucket exists it always has default encryption: SSE-KMS with
+`artifacts_kms_key_arn` when that key is set, otherwise SSE-S3 (`AES256`).
+SSE-C is blocked. That argument requires AWS provider 6.22.0 or later for every
+caller of this module, including when the artifacts bucket is not created. CORS is
+configured whenever the bucket exists and exposes `ETag` for multipart uploads.
+An empty `allowed_origins` allows `https://<superblocks_agent_data_domain>`
+(`app.superblocks.com` by default, or `eu.superblocks.com`). A non-empty
+`allowed_origins` replaces that origin. Completed objects do not expire: the
+orchestrator deletes objects it is done with. A seven-day S3 lifecycle safety
+net only aborts incomplete multipart uploads and their orphaned parts.
+
+When the bucket is created, a dedicated artifacts IAM policy is attached only
+to each lifecycle-worker role so connector roles remain limited to
+`rds-db:connect`. The worker can
 sign uploads, read and delete objects under each profile token, and use
 `kms:Decrypt`, `kms:DescribeKey`, and `kms:GenerateDataKey` when
 `artifacts_kms_key_arn` is set. SSE-KMS on that bucket enables a bucket
 key so multipart uploads do not call KMS once per part. Pass
 `artifacts_bucket_name` and `agents[].artifacts_key_prefix` into a top-level
 Helm `artifacts` block (`bucket` and `keyPrefix`), not `databaseLifecycle`.
+On Fargate, pass those outputs to `modules/app-db` as `artifacts_bucket_name`
+and `artifacts_key_prefix`, and pass `artifacts_kms_key_arn` when that key is
+set. `ecs_env_vars` then includes `SUPERBLOCKS_ARTIFACTS_BUCKET` and
+`SUPERBLOCKS_ARTIFACTS_REGION`, plus `SUPERBLOCKS_ARTIFACTS_KEY_PREFIX` and
+`SUPERBLOCKS_ARTIFACTS_KMS_KEY_ARN` only when those values are set. A null
+bucket name adds none of them.
 
 One bucket is shared by every agent pointed at it.
 `agents[].artifacts_key_prefix` is an optional namespace (empty by default)
@@ -70,19 +102,19 @@ The new `s3_artifacts_name_prefix` defaults to `sb-data-artifacts` and caps at
 owned by one module invocation. Independent invocations in the same account
 and region must use distinct prefixes; separate Terraform states must not
 manage the same bucket. Both bucket names freeze independently via
-`prevent_destroy`. `terraform destroy` will refuse to delete either bucket;
-the artifacts bucket may still contain customer objects. To retire them,
-empty the artifacts bucket and delete both buckets outside Terraform, or
-remove the two bucket resources from state if you are abandoning them.
-Callers whose deployer can only create buckets under a
-specific name prefix must set `s3_artifacts_name_prefix` to a matching value
-before the first apply. Setting `allowed_origins` also requires the deployer
-to have `s3:PutBucketCORS` on the artifacts bucket. The HTTPS-only bucket
-policy requires `s3:PutBucketPolicy`.
+`prevent_destroy`. `terraform destroy` will refuse to delete the state bucket,
+and the artifacts bucket once it has been created. The artifacts bucket may
+still contain customer objects. To retire them, empty the artifacts bucket and
+delete both buckets outside Terraform, or remove the bucket resources from
+state if you are abandoning them. Callers whose deployer can only create
+buckets under a specific name prefix must set `s3_artifacts_name_prefix` to a
+matching value before the first apply. Creating the artifacts bucket requires
+`s3:PutBucketCORS`, `s3:PutBucketPolicy`, and `s3:PutEncryptionConfiguration`,
+and `s3:PutBucketPublicAccessBlock` unless `enable_public_access_blocks` is false.
 
-The existing `kms_key_arn` continues to configure the OpenTofu state bucket.
-The new `artifacts_kms_key_arn` independently configures customer data so a
-principal that can decrypt state cannot decrypt artifacts.
+The existing `kms_key_arn` continues to configure the OpenTofu state bucket
+only, and only when it is set. `artifacts_kms_key_arn` independently configures
+customer data so a principal that can decrypt state cannot decrypt artifacts.
 
 ### App DB: Helm physicalModuleTags is inventory only
 
