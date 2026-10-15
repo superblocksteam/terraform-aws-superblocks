@@ -174,6 +174,12 @@ locals {
       backend   = "terraform"
       terraform = local.logical_terraform
     }
+
+    # Admin "Mark as deleted" on a failed retire queues this operation and
+    # refuses unless the owning OPA advertises it. It runs natively and needs
+    # no Terraform root. Requires OPA image v1.53.0 or later; older images
+    # accept native_runner only for migrate_schema and exit at startup.
+    verify_database_infra_absence = { backend = "native_runner" }
   }
 
   # One configuration per OPA: engines and operations sit at the document root.
@@ -181,10 +187,11 @@ locals {
   # once as agent tags, and the worker rejects a profiles key here outright so
   # the two can never disagree.
   #
-  # Requires OPA image v1.46.0 or later. Older images still expect an `entries`
-  # array and exit at startup with "database lifecycle config entries are
-  # required". Pin superblocks_agent_image when wiring ecs_env_vars into the
-  # root module (see examples/app-db-fargate).
+  # Requires OPA image v1.53.0 or later. Images before v1.46.0 still expect an
+  # `entries` array and exit at startup with "database lifecycle config entries
+  # are required"; images before v1.53.0 reject the native_runner
+  # verify_database_infra_absence operation. Pin superblocks_agent_image when
+  # wiring ecs_env_vars into the root module (see examples/app-db-fargate).
   lifecycle_config = {
     engines    = ["postgres"]
     operations = local.lifecycle_operations
@@ -243,6 +250,13 @@ locals {
     {
       name  = "SUPERBLOCKS_DATABASE_LIFECYCLE_POLL_INTERVAL"
       value = "30s"
+    },
+    # The worker leaves the dispatch watch off when this is unset and falls
+    # back to polling. Helm enables it by default; match that so Fargate OPAs
+    # claim work as soon as the control plane publishes it.
+    {
+      name  = "SUPERBLOCKS_DATABASE_LIFECYCLE_DISPATCH_WATCH_ENABLED"
+      value = "true"
     },
     # SUPERBLOCKS_DATABASE_LIFECYCLE_ALLOWED_RESOURCE_TYPES is deliberately
     # unset. The worker's own default mirrors the resource graph of the modules
