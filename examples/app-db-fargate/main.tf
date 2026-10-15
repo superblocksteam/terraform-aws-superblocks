@@ -15,9 +15,11 @@ provider "aws" {
 # module.superblocks_opa1 there with the name of your existing
 # terraform-aws-superblocks module block, or plan fails on an undeclared module.
 #
-# IMPORTANT: pin superblocks_agent_image to v1.46.0 or later. modules/app-db
-# emits the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG shape that older images
-# reject at startup with "database lifecycle config entries are required".
+# IMPORTANT: pin superblocks_agent_image to v1.53.0 or later. modules/app-db
+# emits a SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG that older images reject at
+# startup: before v1.46.0 with "database lifecycle config entries are
+# required", and before v1.53.0 because verify_database_infra_absence is not
+# yet a supported native_runner operation.
 #
 # IMPORTANT: set existing_role_name (in the agents block below) to your
 # current ECS task role name so app-db-prereqs attaches its policies to
@@ -241,9 +243,9 @@ module "superblocks_opa1" {
   ecs_subnet_ids        = ["subnet-0000000000000001", "subnet-0000000000000002"]
   lb_subnet_ids         = ["subnet-0000000000000001", "subnet-0000000000000002"]
 
-  # App DB requires OPA v1.46.0+. The untagged default image may be older and
-  # will exit on the flat SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG this module emits.
-  superblocks_agent_image = "ghcr.io/superblocksteam/agent:v1.46.0"
+  # App DB requires OPA v1.53.0+. The untagged default image may be older and
+  # will exit on the SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG this module emits.
+  superblocks_agent_image = "ghcr.io/superblocksteam/agent:v1.53.0"
 
   # App DB additions — wire these in from the modules above.
   superblocks_agent_tags                  = module.app_db_opa1.superblocks_agent_tags
