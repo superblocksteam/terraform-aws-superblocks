@@ -40,9 +40,10 @@ override_resource {
 }
 
 variables {
-  allowed_origins = ["https://app.superblocks.com"]
-  deployment_type = "fargate"
-  region          = "us-east-1"
+  allowed_origins         = ["https://app.superblocks.com"]
+  create_artifacts_bucket = true
+  deployment_type         = "fargate"
+  region                  = "us-east-1"
 
   agents = {
     opa1 = {
@@ -56,7 +57,7 @@ run "bucket_name_follows_prefix_then_region_then_account" {
   command = plan
 
   assert {
-    condition     = aws_s3_bucket.artifacts.bucket == "sb-data-artifacts-us-east-1-123456789012"
+    condition     = aws_s3_bucket.artifacts[0].bucket == "sb-data-artifacts-us-east-1-123456789012"
     error_message = "The artifacts bucket must default to sb-data-artifacts-<region>-<account_id>."
   }
 
@@ -79,7 +80,7 @@ run "each_instantiation_can_name_its_own_bucket" {
   }
 
   assert {
-    condition     = aws_s3_bucket.artifacts.bucket == "acme-data-artifacts-us-east-1-123456789012"
+    condition     = aws_s3_bucket.artifacts[0].bucket == "acme-data-artifacts-us-east-1-123456789012"
     error_message = "s3_artifacts_name_prefix must name the bucket so instantiations sharing an account do not collide."
   }
 
@@ -114,7 +115,7 @@ run "cors_exposes_etag_for_multipart" {
 
   assert {
     condition     = one(aws_s3_bucket_cors_configuration.artifacts[0].cors_rule).allowed_origins == toset(["https://app.superblocks.com"])
-    error_message = "CORS allowed_origins must come from the caller variable."
+    error_message = "A non-empty allowed_origins list must replace the data-domain origin."
   }
 }
 
@@ -122,12 +123,12 @@ run "incomplete_multipart_uploads_abort_after_seven_days" {
   command = plan
 
   assert {
-    condition     = one(aws_s3_bucket_lifecycle_configuration.artifacts.rule).abort_incomplete_multipart_upload[0].days_after_initiation == 7
+    condition     = one(aws_s3_bucket_lifecycle_configuration.artifacts[0].rule).abort_incomplete_multipart_upload[0].days_after_initiation == 7
     error_message = "Incomplete multipart uploads must be aborted after seven days."
   }
 
   assert {
-    condition     = length(one(aws_s3_bucket_lifecycle_configuration.artifacts.rule).expiration) == 0
+    condition     = length(one(aws_s3_bucket_lifecycle_configuration.artifacts[0].rule).expiration) == 0
     error_message = "The multipart safety net must not expire completed artifacts."
   }
 }
@@ -137,10 +138,10 @@ run "public_access_is_blocked" {
 
   assert {
     condition = (
-      aws_s3_bucket_public_access_block.artifacts.block_public_acls &&
-      aws_s3_bucket_public_access_block.artifacts.block_public_policy &&
-      aws_s3_bucket_public_access_block.artifacts.ignore_public_acls &&
-      aws_s3_bucket_public_access_block.artifacts.restrict_public_buckets
+      aws_s3_bucket_public_access_block.artifacts[0].block_public_acls &&
+      aws_s3_bucket_public_access_block.artifacts[0].block_public_policy &&
+      aws_s3_bucket_public_access_block.artifacts[0].ignore_public_acls &&
+      aws_s3_bucket_public_access_block.artifacts[0].restrict_public_buckets
     )
     error_message = "The artifacts bucket must block all public access, matching the state bucket."
   }
@@ -148,16 +149,16 @@ run "public_access_is_blocked" {
   assert {
     condition = (
       one([
-        for statement in jsondecode(aws_s3_bucket_policy.artifacts.policy).Statement :
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
         statement if statement.Sid == "DenyInsecureTransport"
       ]).Effect == "Deny" &&
       one([
-        for statement in jsondecode(aws_s3_bucket_policy.artifacts.policy).Statement :
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
         statement if statement.Sid == "DenyInsecureTransport"
       ]).Condition.Bool["aws:SecureTransport"] == "false" &&
       toset(flatten([
         one([
-          for statement in jsondecode(aws_s3_bucket_policy.artifacts.policy).Statement :
+          for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
           statement.Resource if statement.Sid == "DenyInsecureTransport"
         ])
         ])) == toset([
@@ -225,7 +226,7 @@ run "object_access_is_scoped_to_the_agent_profile_token" {
   }
 
   assert {
-    condition     = aws_iam_role_policy_attachment.lifecycle_worker_artifacts["opa1"].policy_arn == aws_iam_policy.artifacts["opa1"].arn
+    condition     = aws_iam_role_policy_attachment.lifecycle_worker_artifacts["opa1"].role == aws_iam_role.lifecycle_worker["opa1"].name
     error_message = "The dedicated artifacts policy must be attached to the lifecycle worker."
   }
 
@@ -270,6 +271,22 @@ run "kms_decrypt_is_granted_when_a_customer_managed_key_is_set" {
     ]) == true
     error_message = "SSE-KMS on artifacts must use a bucket key."
   }
+
+  assert {
+    condition = one([
+      for r in one(aws_s3_bucket_server_side_encryption_configuration.artifacts).rule :
+      one(r.apply_server_side_encryption_by_default).sse_algorithm
+    ]) == "aws:kms"
+    error_message = "artifacts_kms_key_arn must select SSE-KMS."
+  }
+
+  assert {
+    condition = toset(one([
+      for r in one(aws_s3_bucket_server_side_encryption_configuration.artifacts).rule :
+      r.blocked_encryption_types
+    ])) == toset(["SSE-C"])
+    error_message = "SSE-KMS on artifacts must still block SSE-C."
+  }
 }
 
 run "a_state_bucket_key_does_not_encrypt_artifacts" {
@@ -288,8 +305,27 @@ run "a_state_bucket_key_does_not_encrypt_artifacts" {
   }
 
   assert {
-    condition     = length(aws_s3_bucket_server_side_encryption_configuration.artifacts) == 0
-    error_message = "The artifacts bucket must stay on SSE-S3 unless artifacts_kms_key_arn is set."
+    condition = one([
+      for r in one(aws_s3_bucket_server_side_encryption_configuration.artifacts).rule :
+      one(r.apply_server_side_encryption_by_default).sse_algorithm
+    ]) == "AES256"
+    error_message = "Without artifacts_kms_key_arn the artifacts bucket must use SSE-S3."
+  }
+
+  assert {
+    condition = toset(one([
+      for r in one(aws_s3_bucket_server_side_encryption_configuration.artifacts).rule :
+      r.blocked_encryption_types
+    ])) == toset(["SSE-C"])
+    error_message = "SSE-S3 on artifacts must block SSE-C."
+  }
+
+  assert {
+    condition = one([
+      for r in one(aws_s3_bucket_server_side_encryption_configuration.artifacts).rule :
+      r.bucket_key_enabled
+    ]) == false
+    error_message = "SSE-S3 on artifacts must not enable a bucket key."
   }
 }
 
@@ -313,7 +349,7 @@ run "wildcard_origins_are_rejected" {
   expect_failures = [var.allowed_origins]
 }
 
-run "cors_is_optional_for_existing_callers" {
+run "cors_defaults_to_the_data_domain" {
   command = plan
 
   variables {
@@ -321,8 +357,107 @@ run "cors_is_optional_for_existing_callers" {
   }
 
   assert {
-    condition     = length(aws_s3_bucket_cors_configuration.artifacts) == 0
-    error_message = "An empty allowed_origins list must omit CORS configuration."
+    condition     = one(aws_s3_bucket_cors_configuration.artifacts[0].cors_rule).allowed_origins == toset(["https://app.superblocks.com"])
+    error_message = "An empty allowed_origins list must allow the default data domain."
+  }
+}
+
+run "cors_follows_the_eu_data_domain" {
+  command = plan
+
+  variables {
+    allowed_origins               = []
+    superblocks_agent_data_domain = "eu.superblocks.com"
+  }
+
+  assert {
+    condition     = one(aws_s3_bucket_cors_configuration.artifacts[0].cors_rule).allowed_origins == toset(["https://eu.superblocks.com"])
+    error_message = "An empty allowed_origins list must allow https://<superblocks_agent_data_domain>."
+  }
+}
+
+run "an_explicit_origin_replaces_the_data_domain" {
+  command = plan
+
+  variables {
+    allowed_origins               = ["https://ui.example.com"]
+    superblocks_agent_data_domain = "eu.superblocks.com"
+  }
+
+  assert {
+    condition     = one(aws_s3_bucket_cors_configuration.artifacts[0].cors_rule).allowed_origins == toset(["https://ui.example.com"])
+    error_message = "allowed_origins must replace the data-domain origin."
+  }
+}
+
+run "an_unknown_data_domain_is_rejected" {
+  command = plan
+
+  variables {
+    superblocks_agent_data_domain = "example.com"
+  }
+
+  expect_failures = [var.superblocks_agent_data_domain]
+}
+
+run "the_artifacts_bucket_is_omitted_by_default" {
+  command = plan
+
+  variables {
+    create_artifacts_bucket = false
+  }
+
+  assert {
+    condition     = length(aws_s3_bucket.artifacts) == 0
+    error_message = "The artifacts bucket must be absent unless create_artifacts_bucket is true."
+  }
+
+  assert {
+    condition     = output.artifacts_bucket_name == null
+    error_message = "artifacts_bucket_name must be null when the bucket is not created."
+  }
+
+  assert {
+    condition = (
+      length(aws_iam_policy.artifacts) == 0 &&
+      length(aws_iam_role_policy_attachment.lifecycle_worker_artifacts) == 0 &&
+      length(aws_s3_bucket_public_access_block.artifacts) == 0 &&
+      length(aws_s3_bucket_policy.artifacts) == 0 &&
+      length(aws_s3_bucket_server_side_encryption_configuration.artifacts) == 0 &&
+      length(aws_s3_bucket_cors_configuration.artifacts) == 0 &&
+      length(aws_s3_bucket_lifecycle_configuration.artifacts) == 0
+    )
+    error_message = "Omitting the artifacts bucket must omit its dependents and the worker policy."
+  }
+
+  assert {
+    condition     = aws_s3_bucket_public_access_block.tofu_state[0].block_public_acls
+    error_message = "Omitting the artifacts bucket must leave the state bucket public access block in place."
+  }
+}
+
+run "the_artifacts_public_access_block_can_be_omitted" {
+  command = plan
+
+  variables {
+    enable_public_access_blocks = false
+  }
+
+  assert {
+    condition = (
+      length(aws_s3_bucket_public_access_block.artifacts) == 0 &&
+      length(aws_s3_bucket_public_access_block.tofu_state) == 0
+    )
+    error_message = "enable_public_access_blocks = false must omit both public access blocks."
+  }
+
+  assert {
+    condition = (
+      length(aws_s3_bucket.artifacts) == 1 &&
+      length(aws_s3_bucket_policy.artifacts) == 1 &&
+      aws_s3_bucket.tofu_state.bucket == "sb-app-db-us-east-1-123456789012"
+    )
+    error_message = "Omitting the public access blocks must keep both buckets and the artifacts HTTPS policy."
   }
 }
 

@@ -8,12 +8,12 @@ output "agents" {
       lifecycle_worker_role_arn = local.agent_role_arns[k]
     }
   }
-  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), agent_tags (pass as agent_tags to the app-db module), key_prefix (the IAM-backed state prefix — pass as key_prefix to the app-db module), and artifacts_key_prefix (optional namespace to pass as artifacts.keyPrefix; empty when unset). Object grants are [<that prefix>/]<profileToken>/*; kinds are not part of this output."
+  description = "Per-agent outputs. For each agent: lifecycle_worker_role_arn (ARN of the lifecycle worker role), connector_role_arn (pass as SUPERBLOCKS_APP_DB_CONNECTOR_ROLE_ARN), agent_tags (pass as agent_tags to the app-db module), key_prefix (the IAM-backed state prefix — pass as key_prefix to the app-db module), and artifacts_key_prefix (optional namespace, empty when unset; pass as Helm artifacts.keyPrefix on EKS or as artifacts_key_prefix to modules/app-db on Fargate). Object grants are [<that prefix>/]<profileToken>/*; kinds are not part of this output."
 }
 
 output "artifacts_bucket_name" {
-  value       = aws_s3_bucket.artifacts.id
-  description = "Name of the long-lived S3 bucket for data artifacts (imports, exports, and later kinds). One bucket per module invocation, shared by every agent pointed at it. Objects are partitioned by agents[].artifacts_key_prefix (optional namespace) then profile token; the orchestrator deletes what it is done with. Pass to the OPA as artifacts.bucket (top-level, not under databaseLifecycle). EKS: Helm values. Fargate: a future app-db env var, not SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG."
+  value       = one(aws_s3_bucket.artifacts[*].bucket)
+  description = "Name of the long-lived S3 bucket for data artifacts (imports, exports, and later kinds), or null when create_artifacts_bucket is false. One bucket per module invocation, shared by every agent pointed at it. Objects are partitioned by agents[].artifacts_key_prefix (optional namespace) then profile token; the orchestrator deletes what it is done with. A null or empty value means the OPA does not offer import or export. EKS: Helm artifacts.bucket (top-level, not under databaseLifecycle). Fargate: pass as artifacts_bucket_name to modules/app-db, which emits SUPERBLOCKS_ARTIFACTS_BUCKET and SUPERBLOCKS_ARTIFACTS_REGION."
 }
 
 output "enhanced_monitoring_role_arn" {

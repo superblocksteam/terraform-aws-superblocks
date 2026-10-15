@@ -106,14 +106,15 @@ module "app_db_prereqs" {
   # same account and region must use distinct values.
   # s3_artifacts_name_prefix = "acme-data-artifacts"
 
-  # Optional explicit HTTPS browser origins allowed to PUT artifacts. Include
-  # every origin that hosts the Superblocks UI when enabling browser uploads;
-  # an empty list creates no CORS configuration.
-  allowed_origins = ["https://app.superblocks.com"]
+  # The artifacts bucket is off unless this is true. Once created it cannot be
+  # deleted by a later apply. CORS then allows https://<superblocks_agent_data_domain>
+  # (app.superblocks.com or eu.superblocks.com). Set allowed_origins to replace that origin.
+  create_artifacts_bucket       = true
+  superblocks_agent_data_domain = "app.superblocks.com"
 
   # Optional: customer-managed KMS keys. State and artifacts are independent
   # so a principal that can decrypt OpenTofu state cannot decrypt customer data.
-  # When omitted, that bucket uses AWS account-default encryption (SSE-S3).
+  # When artifacts_kms_key_arn is omitted, the artifacts bucket uses SSE-S3 and blocks SSE-C.
   # kms_key_arn           = "arn:aws:kms:us-east-1:123456789012:key/mrk-state"
   # artifacts_kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-artifacts"
 
@@ -152,6 +153,12 @@ module "app_db_opa1" {
   # wire it from the prereqs output so it matches the IAM prefix that module
   # granted; override the value on the agents entry above, never here.
   key_prefix = module.app_db_prereqs.agents["opa1"].key_prefix
+
+  # Import stays off when artifacts_bucket_name is null. artifacts_key_prefix
+  # is empty for a typical OPA; the module then omits SUPERBLOCKS_ARTIFACTS_KEY_PREFIX.
+  # Pass artifacts_kms_key_arn only when app-db-prereqs sets that key.
+  artifacts_bucket_name = module.app_db_prereqs.artifacts_bucket_name
+  artifacts_key_prefix  = module.app_db_prereqs.agents["opa1"].artifacts_key_prefix
 
   physical_module_inputs = {
     # Aurora Serverless v2 is the default: capacity scales between min_acu and
@@ -256,7 +263,7 @@ output "enhanced_monitoring_role_arn" {
 
 output "artifacts_bucket_name" {
   value       = module.app_db_prereqs.artifacts_bucket_name
-  description = "S3 bucket for data artifacts (imports, exports, and later kinds). One bucket shared by every agent in this apply. Reserved for future Fargate artifacts runtime wiring; no current app-db input or environment variable consumes it."
+  description = "S3 bucket for data artifacts (imports, exports, and later kinds). One bucket shared by every agent in this apply. Passed to modules/app-db as artifacts_bucket_name, which emits SUPERBLOCKS_ARTIFACTS_BUCKET and SUPERBLOCKS_ARTIFACTS_REGION. Null when create_artifacts_bucket is false."
 }
 
 output "state_bucket_name" {

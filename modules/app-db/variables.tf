@@ -18,6 +18,42 @@ variable "region" {
   }
 }
 
+variable "artifacts_bucket_name" {
+  type        = string
+  default     = null
+  description = "Name of the shared artifacts bucket, from the app-db-prereqs output artifacts_bucket_name. Null or empty leaves import unavailable and emits no SUPERBLOCKS_ARTIFACTS_* variables. When set, ecs_env_vars includes SUPERBLOCKS_ARTIFACTS_BUCKET and SUPERBLOCKS_ARTIFACTS_REGION (this module's region). The bucket must live in that region."
+
+  validation {
+    condition = (
+      var.artifacts_bucket_name == null ||
+      trimspace(var.artifacts_bucket_name) == "" ||
+      can(regex("^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$", var.artifacts_bucket_name))
+    )
+    error_message = "artifacts_bucket_name must be a 3-63 character S3 bucket name, or null to leave import off."
+  }
+}
+
+variable "artifacts_key_prefix" {
+  type        = string
+  default     = null
+  description = "Optional namespace in the shared artifacts bucket, from the app-db-prereqs output agents[<agent_name>].artifacts_key_prefix. Empty or null omits SUPERBLOCKS_ARTIFACTS_KEY_PREFIX. When set, ecs_env_vars includes that variable only if artifacts_bucket_name is also set. A value that differs from the IAM prefix fails object access with AccessDenied."
+
+  validation {
+    condition = (
+      var.artifacts_key_prefix == null ||
+      trimspace(var.artifacts_key_prefix) == "" ||
+      can(regex("^[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)*$", var.artifacts_key_prefix))
+    )
+    error_message = "artifacts_key_prefix must be one or more slash-separated segments of letters, digits, dots, underscores, or hyphens (e.g. \"team-a\"), or empty."
+  }
+}
+
+variable "artifacts_kms_key_arn" {
+  type        = string
+  default     = null
+  description = "ARN of the customer-managed KMS key for the artifacts bucket, from the app-db-prereqs input artifacts_kms_key_arn. Null or empty omits SUPERBLOCKS_ARTIFACTS_KMS_KEY_ARN. When set, ecs_env_vars includes that variable only if artifacts_bucket_name is also set. Use the same key the bucket encrypts with."
+}
+
 variable "key_prefix" {
   type        = string
   description = "Prefix that namespaces this OPA's OpenTofu state within the shared S3 bucket. Pass the app-db-prereqs module output agents[<agent_name>].key_prefix — that module's IAM grants the lifecycle worker access under that prefix only, so a hand-written value that differs fails every state read/write with AccessDenied. Override the prefix itself on the prereqs agents entry, not here. Logical database state lands under <key_prefix>/logical/{{profile}}/... and physical instance state under <key_prefix>/physical/{{profile}}/..."

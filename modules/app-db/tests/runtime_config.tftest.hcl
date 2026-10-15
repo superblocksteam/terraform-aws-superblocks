@@ -275,3 +275,92 @@ run "agent_tags_reject_mixed_case" {
 
   expect_failures = [var.agent_tags]
 }
+
+run "an_unset_artifacts_bucket_emits_no_artifacts_environment" {
+  command = plan
+
+  assert {
+    condition = length([
+      for env in output.ecs_env_vars : env.name
+      if startswith(env.name, "SUPERBLOCKS_ARTIFACTS_")
+    ]) == 0
+    error_message = "Import stays off until artifacts_bucket_name is set, so ecs_env_vars must not include SUPERBLOCKS_ARTIFACTS_*."
+  }
+}
+
+run "a_key_prefix_without_a_bucket_still_emits_no_artifacts_environment" {
+  command = plan
+
+  variables {
+    artifacts_key_prefix = "team-a"
+  }
+
+  assert {
+    condition = length([
+      for env in output.ecs_env_vars : env.name
+      if startswith(env.name, "SUPERBLOCKS_ARTIFACTS_")
+    ]) == 0
+    error_message = "A key prefix alone must not turn import on."
+  }
+}
+
+run "a_set_artifacts_bucket_is_passed_as_bucket_and_region" {
+  command = plan
+
+  variables {
+    artifacts_bucket_name = "sb-data-artifacts-us-east-1-123456789012"
+  }
+
+  assert {
+    condition = [
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_ARTIFACTS_BUCKET"
+    ][0] == "sb-data-artifacts-us-east-1-123456789012"
+    error_message = "SUPERBLOCKS_ARTIFACTS_BUCKET must be artifacts_bucket_name."
+  }
+
+  assert {
+    condition = [
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_ARTIFACTS_REGION"
+    ][0] == "us-east-1"
+    error_message = "SUPERBLOCKS_ARTIFACTS_REGION must be this module's region."
+  }
+
+  assert {
+    condition = length([
+      for env in output.ecs_env_vars : env.name
+      if contains([
+        "SUPERBLOCKS_ARTIFACTS_KEY_PREFIX",
+        "SUPERBLOCKS_ARTIFACTS_KMS_KEY_ARN",
+      ], env.name)
+    ]) == 0
+    error_message = "An empty key prefix, an unset KMS key, and the non-AWS endpoint must be omitted."
+  }
+}
+
+run "key_prefix_and_kms_key_are_passed_only_when_set" {
+  command = plan
+
+  variables {
+    artifacts_bucket_name = "sb-data-artifacts-us-east-1-123456789012"
+    artifacts_key_prefix  = "team-a"
+    artifacts_kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/mrk-artifacts"
+  }
+
+  assert {
+    condition = [
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_ARTIFACTS_KEY_PREFIX"
+    ][0] == "team-a"
+    error_message = "SUPERBLOCKS_ARTIFACTS_KEY_PREFIX must be artifacts_key_prefix."
+  }
+
+  assert {
+    condition = [
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_ARTIFACTS_KMS_KEY_ARN"
+    ][0] == "arn:aws:kms:us-east-1:123456789012:key/mrk-artifacts"
+    error_message = "SUPERBLOCKS_ARTIFACTS_KMS_KEY_ARN must be artifacts_kms_key_arn."
+  }
+}

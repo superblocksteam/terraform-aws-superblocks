@@ -34,9 +34,10 @@ mock_provider "aws" {
 }
 
 variables {
-  allowed_origins = ["https://app.superblocks.com"]
-  deployment_type = "fargate"
-  region          = "us-east-1"
+  allowed_origins         = ["https://app.superblocks.com"]
+  create_artifacts_bucket = true
+  deployment_type         = "fargate"
+  region                  = "us-east-1"
 
   agents = {
     prod = {
@@ -178,7 +179,7 @@ run "every_taggable_resource_carries_the_tags" {
 
   assert {
     condition = alltrue([
-      for tags in [aws_iam_role.enhanced_monitoring[0].tags, aws_s3_bucket.tofu_state.tags, aws_s3_bucket.artifacts.tags] : (
+      for tags in [aws_iam_role.enhanced_monitoring[0].tags, aws_s3_bucket.tofu_state.tags, aws_s3_bucket.artifacts[0].tags] : (
         tags["superblocks:owned"] == "true" &&
         tags["aws-apn-id"] == "pc:ctelqp437y3cvjkv5rv0z2w4f" &&
         tags["ManagedBy"] == "superblocks-app-database-lifecycle"
