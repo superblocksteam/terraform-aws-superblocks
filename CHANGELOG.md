@@ -2,20 +2,20 @@
 
 ## Unreleased
 
-### App DB: Fargate OPAs verify infrastructure absence and watch for dispatches
+### App DB: Fargate OPAs watch for dispatches and can verify infrastructure absence
 
-`app-db` now renders the `verify_database_infra_absence` operation (backend
+`app-db` can now render the `verify_database_infra_absence` operation (backend
 `native_runner`), matching the Helm chart. Without it a Fargate OPA never
-advertised the operation, so marking a database deleted after a failed
-retirement was refused with "No active owning App Database agent supports
-infrastructure absence verification".
+advertises the operation, so marking a database deleted after a failed
+retirement is refused with "No active owning App Database agent supports
+infrastructure absence verification". Set `verify_infra_absence_enabled = true`
+after pinning `superblocks_agent_image` to v1.53.0 or later. It defaults to
+`false` because older images reject the operation at startup.
 
 `app-db` also sets `SUPERBLOCKS_DATABASE_LIFECYCLE_DISPATCH_WATCH_ENABLED=true`,
 the Helm default. The worker leaves the watch off when the variable is unset,
 so Fargate OPAs polled every 30 seconds for work that EKS OPAs claimed at once.
-
-**Requires OPA image v1.53.0 or later.** Older images reject the new operation
-at startup. `examples/app-db-fargate` now pins `v1.53.0`.
+Images before v1.51.0 ignore the variable and keep polling.
 
 ### App DB: the data plane must be able to reach its clusters
 

@@ -237,3 +237,9 @@ variable "physical_module_inputs" {
     error_message = "physical_module_inputs.vpc_id must be a valid VPC ID (e.g. vpc-0123456789abcdef0)."
   }
 }
+
+variable "verify_infra_absence_enabled" {
+  type        = bool
+  default     = false
+  description = "Render the verify_database_infra_absence lifecycle operation, which lets an admin \"Mark as deleted\" a database whose retirement failed. Requires OPA image v1.53.0 or later; older images exit at startup when the operation is present. Leave false until superblocks_agent_image is pinned to v1.53.0 or later."
+}
