@@ -2,15 +2,23 @@
 
 ## Unreleased
 
-### App DB: Fargate OPAs watch for dispatches and can verify infrastructure absence
+### Breaking: App DB requires OPA v1.53.0 unless verify_infra_absence_enabled = false
 
-`app-db` can now render the `verify_database_infra_absence` operation (backend
-`native_runner`), matching the Helm chart. Without it a Fargate OPA never
-advertises the operation, so marking a database deleted after a failed
-retirement is refused with "No active owning App Database agent supports
-infrastructure absence verification". Set `verify_infra_absence_enabled = true`
-after pinning `superblocks_agent_image` to v1.53.0 or later. It defaults to
-`false` because older images reject the operation at startup.
+`app-db` now renders the `verify_database_infra_absence` operation (backend
+`native_runner`) by default, matching the Helm chart. Without it a Fargate OPA
+never advertised the operation, so marking a database deleted after a failed
+retirement was refused with "No active owning App Database agent supports
+infrastructure absence verification".
+
+OPA images before v1.53.0 exit at startup when the operation is present. The
+root module now fails the plan when the lifecycle config includes it and
+`superblocks_agent_image` is tagged below v1.53.0. Digests, `latest`, and other
+tags that are not a version are not checked. To upgrade gradually, set
+`verify_infra_absence_enabled = false` on `app-db`, upgrade the image, then
+remove the override. `examples/app-db-fargate` now pins `v1.53.0`.
+
+The root module now requires Terraform or OpenTofu 1.2 or later, for the plan
+check above.
 
 `app-db` also sets `SUPERBLOCKS_DATABASE_LIFECYCLE_DISPATCH_WATCH_ENABLED=true`,
 the Helm default. The worker leaves the watch off when the variable is unset,

@@ -178,8 +178,8 @@ locals {
 
   # Admin "Mark as deleted" on a failed retire queues this operation and
   # refuses unless the owning OPA advertises it. It runs natively and needs no
-  # Terraform root. Opt-in because images before v1.53.0 accept native_runner
-  # only for migrate_schema and exit at startup.
+  # Terraform root. Images before v1.53.0 accept native_runner only for
+  # migrate_schema and exit at startup, so operators still on one can opt out.
   lifecycle_operations = merge(
     local.base_lifecycle_operations,
     var.verify_infra_absence_enabled ? {
@@ -192,11 +192,11 @@ locals {
   # once as agent tags, and the worker rejects a profiles key here outright so
   # the two can never disagree.
   #
-  # Requires OPA image v1.46.0 or later (v1.53.0 or later with
-  # verify_infra_absence_enabled). Older images still expect an `entries`
-  # array and exit at startup with "database lifecycle config entries are
-  # required". Pin superblocks_agent_image when wiring ecs_env_vars into the
-  # root module (see examples/app-db-fargate).
+  # Requires OPA image v1.53.0 or later (v1.46.0 or later with
+  # verify_infra_absence_enabled = false). Images before v1.46.0 still expect
+  # an `entries` array and exit at startup with "database lifecycle config
+  # entries are required". Pin superblocks_agent_image when wiring
+  # ecs_env_vars into the root module (see examples/app-db-fargate).
   lifecycle_config = {
     engines    = ["postgres"]
     operations = local.lifecycle_operations

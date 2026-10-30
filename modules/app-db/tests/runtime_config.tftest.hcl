@@ -118,30 +118,12 @@ run "dispatch_watch_matches_helm_default" {
   }
 }
 
-# Images before v1.53.0 exit at startup on verify_database_infra_absence, so a
-# module upgrade alone must not render it.
-run "infra_absence_verification_is_off_by_default" {
-  command = plan
-
-  assert {
-    condition = !contains(keys(jsondecode([
-      for env in output.ecs_env_vars : env.value
-      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
-    ][0]).operations), "verify_database_infra_absence")
-    error_message = "verify_database_infra_absence must stay off unless verify_infra_absence_enabled is set."
-  }
-}
-
 # Admin "Mark as deleted" on a failed retire queues verify_database_infra_absence
 # and refuses unless the owning OPA advertises it. The worker advertises only
-# operations present in the lifecycle document, so the module must render it
-# once the operator opts in.
+# operations present in the lifecycle document, so the module renders it by
+# default.
 run "infra_absence_verification_runs_natively" {
   command = plan
-
-  variables {
-    verify_infra_absence_enabled = true
-  }
 
   assert {
     condition = jsondecode([
@@ -149,6 +131,24 @@ run "infra_absence_verification_runs_natively" {
       if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
     ][0]).operations.verify_database_infra_absence == { backend = "native_runner" }
     error_message = "verify_database_infra_absence must be a native_runner operation, matching helm/agent."
+  }
+}
+
+# Images before v1.53.0 exit at startup on verify_database_infra_absence, so an
+# operator who cannot upgrade yet must be able to leave it out.
+run "infra_absence_verification_can_be_turned_off" {
+  command = plan
+
+  variables {
+    verify_infra_absence_enabled = false
+  }
+
+  assert {
+    condition = !contains(keys(jsondecode([
+      for env in output.ecs_env_vars : env.value
+      if env.name == "SUPERBLOCKS_DATABASE_LIFECYCLE_CONFIG"
+    ][0]).operations), "verify_database_infra_absence")
+    error_message = "verify_infra_absence_enabled = false must leave verify_database_infra_absence out of the lifecycle document."
   }
 }
 

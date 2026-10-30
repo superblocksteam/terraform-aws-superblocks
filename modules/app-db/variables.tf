@@ -240,6 +240,6 @@ variable "physical_module_inputs" {
 
 variable "verify_infra_absence_enabled" {
   type        = bool
-  default     = false
-  description = "Render the verify_database_infra_absence lifecycle operation, which lets an admin \"Mark as deleted\" a database whose retirement failed. Requires OPA image v1.53.0 or later; older images exit at startup when the operation is present. Leave false until superblocks_agent_image is pinned to v1.53.0 or later."
+  default     = true
+  description = "Render the verify_database_infra_absence lifecycle operation, which lets an admin \"Mark as deleted\" a database whose retirement failed. Requires OPA image v1.53.0 or later; older images exit at startup when the operation is present, and the root module fails the plan when superblocks_agent_image is pinned below that version. Set false to keep an older OPA image until it can be upgraded."
 }
