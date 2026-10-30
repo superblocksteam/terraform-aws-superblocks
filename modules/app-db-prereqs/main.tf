@@ -164,6 +164,23 @@ locals {
     for name in aws_s3_bucket.artifacts[*].bucket : "arn:aws:s3:::${name}"
   ])
 
+  # Object actions only. Bucket-level actions (CORS, lifecycle, the bucket
+  # policy, ListBucket) stay available to the deploy role.
+  artifacts_object_actions = [
+    "s3:AbortMultipartUpload",
+    "s3:DeleteObject",
+    "s3:GetObject",
+    "s3:ListMultipartUploadParts",
+    "s3:PutObject",
+  ]
+
+  # Created roles and existing_role_name roles. An exempt ARN is an extra
+  # principal the caller names, such as a break-glass role.
+  artifacts_object_access_principal_arns = sort(distinct(concat(
+    values(local.agent_role_arns),
+    var.artifacts_object_access_exempt_principal_arns,
+  )))
+
   # Empty allowed_origins uses the UI host for superblocks_agent_data_domain.
   # A caller list replaces that host, including for a hostname outside those two domains.
   artifacts_cors_origins = length(var.allowed_origins) > 0 ? var.allowed_origins : ["https://${var.superblocks_agent_data_domain}"]
@@ -1490,16 +1507,20 @@ resource "aws_s3_bucket_public_access_block" "tofu_state" {
   restrict_public_buckets = true
 }
 
+# count stays 1 so the address remains tofu_state[0] for a deployment that
+# already set kms_key_arn. No moved block: nothing changes address. A
+# deployment that never set a key gains this resource.
 resource "aws_s3_bucket_server_side_encryption_configuration" "tofu_state" {
-  count  = var.kms_key_arn != null ? 1 : 0
+  count  = 1
   bucket = aws_s3_bucket.tofu_state.id
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
+      sse_algorithm     = var.kms_key_arn == null ? "AES256" : "aws:kms"
       kms_master_key_id = var.kms_key_arn
     }
-    bucket_key_enabled = false
+    blocked_encryption_types = ["SSE-C"]
+    bucket_key_enabled       = var.kms_key_arn != null
   }
 }
 
@@ -1556,30 +1577,101 @@ resource "aws_s3_bucket_public_access_block" "artifacts" {
   restrict_public_buckets = true
 }
 
+# Deny a present encryption header that does not match the bucket. UploadPart
+# cannot send x-amz-server-side-encryption or the KMS key id. Those are set on
+# CreateMultipartUpload, and S3 applies them to every part. Null = false
+# requires the header to be present, so a missing header does not match and
+# the deny does not apply. StringNotEqualsIfExists still matches a missing
+# header and would reject UploadPart. The algorithm and key checks are
+# separate statements because conditions in one statement are combined with AND.
 resource "aws_s3_bucket_policy" "artifacts" {
   count = var.create_artifacts_bucket ? 1 : 0
 
   bucket = aws_s3_bucket.artifacts[0].bucket
-
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "DenyInsecureTransport"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource = [
-          local.artifacts_bucket_arn,
-          "${local.artifacts_bucket_arn}/*",
-        ]
-        Condition = {
-          Bool = {
-            "aws:SecureTransport" = "false"
+    Statement = concat(
+      [
+        {
+          Sid       = "DenyInsecureTransport"
+          Effect    = "Deny"
+          Principal = "*"
+          Action    = "s3:*"
+          Resource = [
+            local.artifacts_bucket_arn,
+            "${local.artifacts_bucket_arn}/*",
+          ]
+          Condition = {
+            Bool = {
+              "aws:SecureTransport" = "false"
+            }
           }
-        }
-      },
-    ]
+        },
+      ],
+      var.restrict_artifacts_object_access ? [
+        {
+          Sid       = "DenyObjectAccessExceptLifecycleWorkers"
+          Effect    = "Deny"
+          Principal = "*"
+          Action    = local.artifacts_object_actions
+          Resource  = "${local.artifacts_bucket_arn}/*"
+          Condition = {
+            ArnNotEquals = {
+              "aws:PrincipalArn" = local.artifacts_object_access_principal_arns
+            }
+          }
+        },
+      ] : [],
+      [
+        {
+          Sid       = "DenySignatureVersionOtherThanSigV4"
+          Effect    = "Deny"
+          Principal = "*"
+          Action    = "s3:*"
+          Resource = [
+            local.artifacts_bucket_arn,
+            "${local.artifacts_bucket_arn}/*",
+          ]
+          Condition = {
+            StringNotEquals = {
+              "s3:signatureversion" = "AWS4-HMAC-SHA256"
+            }
+          }
+        },
+      ],
+      var.artifacts_kms_key_arn == null ? [] : [
+        {
+          Sid       = "DenyIncorrectEncryptionAlgorithm"
+          Effect    = "Deny"
+          Principal = "*"
+          Action    = "s3:PutObject"
+          Resource  = "${local.artifacts_bucket_arn}/*"
+          Condition = {
+            Null = {
+              "s3:x-amz-server-side-encryption" = "false"
+            }
+            StringNotEquals = {
+              "s3:x-amz-server-side-encryption" = "aws:kms"
+            }
+          }
+        },
+        {
+          Sid       = "DenyIncorrectEncryptionKey"
+          Effect    = "Deny"
+          Principal = "*"
+          Action    = "s3:PutObject"
+          Resource  = "${local.artifacts_bucket_arn}/*"
+          Condition = {
+            Null = {
+              "s3:x-amz-server-side-encryption-aws-kms-key-id" = "false"
+            }
+            StringNotEquals = {
+              "s3:x-amz-server-side-encryption-aws-kms-key-id" = var.artifacts_kms_key_arn
+            }
+          }
+        },
+      ],
+    )
   })
 
   depends_on = [aws_s3_bucket_public_access_block.artifacts]
