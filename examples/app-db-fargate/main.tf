@@ -109,6 +109,9 @@ module "app_db_prereqs" {
   # The artifacts bucket is off unless this is true. Once created it cannot be
   # deleted by a later apply. CORS then allows https://<superblocks_agent_data_domain>
   # (app.superblocks.com or eu.superblocks.com). Set allowed_origins to replace that origin.
+  # Object actions are denied except for lifecycle worker roles. Add a break-glass
+  # role with artifacts_object_access_exempt_principal_arns, or set
+  # restrict_artifacts_object_access = false to drop that deny.
   create_artifacts_bucket       = true
   superblocks_agent_data_domain = "app.superblocks.com"
 
@@ -156,9 +159,11 @@ module "app_db_opa1" {
 
   # Import stays off when artifacts_bucket_name is null. artifacts_key_prefix
   # is empty for a typical OPA; the module then omits SUPERBLOCKS_ARTIFACTS_KEY_PREFIX.
-  # Pass artifacts_kms_key_arn only when app-db-prereqs sets that key.
+  # artifacts_kms_key_arn is null when the bucket uses SSE-S3, and the app-db
+  # module then omits SUPERBLOCKS_ARTIFACTS_KMS_KEY_ARN.
   artifacts_bucket_name = module.app_db_prereqs.artifacts_bucket_name
   artifacts_key_prefix  = module.app_db_prereqs.agents["opa1"].artifacts_key_prefix
+  artifacts_kms_key_arn = module.app_db_prereqs.artifacts_kms_key_arn
 
   physical_module_inputs = {
     # Aurora Serverless v2 is the default: capacity scales between min_acu and
@@ -264,6 +269,16 @@ output "enhanced_monitoring_role_arn" {
 output "artifacts_bucket_name" {
   value       = module.app_db_prereqs.artifacts_bucket_name
   description = "S3 bucket for data artifacts (imports, exports, and later kinds). One bucket shared by every agent in this apply. Passed to modules/app-db as artifacts_bucket_name, which emits SUPERBLOCKS_ARTIFACTS_BUCKET and SUPERBLOCKS_ARTIFACTS_REGION. Null when create_artifacts_bucket is false."
+}
+
+output "artifacts_kms_key_arn" {
+  value       = module.app_db_prereqs.artifacts_kms_key_arn
+  description = "KMS key ARN for the artifacts bucket, or null when it uses SSE-S3. Passed to modules/app-db as artifacts_kms_key_arn."
+}
+
+output "artifacts_server_side_encryption_algorithm" {
+  value       = module.app_db_prereqs.artifacts_server_side_encryption_algorithm
+  description = "SSE algorithm on the artifacts bucket (AES256 or aws:kms), or null when the bucket is not created."
 }
 
 output "state_bucket_name" {

@@ -204,13 +204,33 @@ variable "enable_public_access_blocks" {
 variable "artifacts_kms_key_arn" {
   type        = string
   default     = null
-  description = "ARN of the customer-managed KMS key for the artifacts bucket (data artifacts such as imports, exports, and later kinds). When provided, that bucket uses SSE-KMS with this key and a bucket key, and lifecycle-worker IAM is granted kms:Decrypt, kms:DescribeKey, and kms:GenerateDataKey on this key. When null, the bucket uses SSE-S3 (AES256) and no artifacts KMS IAM statement is attached. Either way, SSE-C is blocked. Independent of kms_key_arn so customer data is not decryptable with the state key."
+  description = "ARN of the customer-managed KMS key for the artifacts bucket (data artifacts such as imports, exports, and later kinds). When provided, that bucket uses SSE-KMS with this key and a bucket key, and lifecycle-worker IAM is granted kms:Decrypt, kms:DescribeKey, and kms:GenerateDataKey on this key. PutObject is denied when the encryption algorithm header is present and is not aws:kms, and when the KMS key id header is present and is not this exact ARN. The data plane must send this ARN. A key ID or an alias does not match. UploadPart cannot send those headers, so a missing header is not denied. When null, the bucket uses SSE-S3 (AES256) and no artifacts KMS IAM statement or encryption-header deny is attached. Either way, SSE-C is blocked. Independent of kms_key_arn so customer data is not decryptable with the state key."
+}
+
+variable "restrict_artifacts_object_access" {
+  type        = bool
+  default     = true
+  description = "Whether the artifacts bucket policy denies s3:GetObject, s3:PutObject, s3:DeleteObject, s3:AbortMultipartUpload, and s3:ListMultipartUploadParts on object keys unless aws:PrincipalArn is a lifecycle worker role (including an existing_role_name role) or an ARN in artifacts_object_access_exempt_principal_arns. Defaults to true. Bucket-level actions stay allowed, so the deploy role can still manage CORS, lifecycle, and the bucket policy. The deny also blocks the account root. To break glass, add that role ARN to the exempt list, apply, then remove it. Set false only to drop this statement. Presigned browser uploads are evaluated as the lifecycle worker that signed them."
+}
+
+variable "artifacts_object_access_exempt_principal_arns" {
+  type        = list(string)
+  default     = []
+  description = "IAM role or user ARNs that may read and write artifacts objects in addition to the lifecycle worker roles. Defaults to an empty list. Use this for a break-glass role. The explicit object-access deny still applies to every other principal, including the account root."
+
+  validation {
+    condition = alltrue([
+      for arn in var.artifacts_object_access_exempt_principal_arns :
+      !strcontains(arn, "*") && can(regex("^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:(role|user)/.+$", arn))
+    ])
+    error_message = "Each artifacts_object_access_exempt_principal_arns entry must be an IAM role or user ARN with no wildcard."
+  }
 }
 
 variable "kms_key_arn" {
   type        = string
   default     = null
-  description = "ARN of the customer-managed KMS key for the OpenTofu state bucket. When provided, the bucket is configured with SSE-KMS using this key and lifecycle-worker IAM is granted KMS access only on this key. When null, the bucket uses AWS account-default encryption (SSE-S3) and no state-bucket KMS IAM statement is attached."
+  description = "ARN of the customer-managed KMS key for the OpenTofu state bucket. Encryption is always declared on that bucket. When this is set, the bucket uses SSE-KMS with this key and a bucket key, and lifecycle-worker IAM is granted KMS access only on this key. When null, the bucket uses SSE-S3 (AES256) and no state-bucket KMS IAM statement is attached. Either way, SSE-C is blocked."
 }
 
 variable "permissions_boundary" {

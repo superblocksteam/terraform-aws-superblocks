@@ -2,6 +2,56 @@
 
 ## Unreleased
 
+### App DB prereqs: artifacts object access, signature version, and state encryption
+
+When the artifacts bucket exists, its policy now denies object actions
+(`s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:AbortMultipartUpload`,
+`s3:ListMultipartUploadParts`) unless `aws:PrincipalArn` is a lifecycle worker
+role or an ARN in `artifacts_object_access_exempt_principal_arns`. That
+includes roles passed as `existing_role_name`. `restrict_artifacts_object_access`
+defaults to `true`. The exempt list defaults to empty. The deny also blocks
+the account root. To break glass, add that role ARN to the exempt list, apply,
+then remove it. Bucket-level actions stay allowed, so the deploy role can
+still manage CORS, lifecycle, and the bucket policy. Presigned browser uploads
+are evaluated as the worker that signed them. An identity policy that allows
+object writes, including a name-scoped `S3BucketMutate` grant, does not
+override this bucket deny.
+
+The same policy always denies requests whose `s3:signatureversion` is not
+`AWS4-HMAC-SHA256`. A request that omits the signature version is denied,
+because `StringNotEquals` matches a missing key. Presigned uploads and other
+SigV4 requests send the version.
+
+When `artifacts_kms_key_arn` is set, `PutObject` is denied when the encryption
+algorithm header is present and is not `aws:kms`, and denied again when the
+KMS key id header is present and is not that full key ARN. The data plane must
+send that ARN. A key ID or an alias does not match. Each check requires the
+header to be present (`Null` = false) before comparing it. `UploadPart` cannot
+send those headers. Encryption is set on `CreateMultipartUpload`, and a missing
+header is not denied. `StringNotEqualsIfExists` would deny the missing header.
+Without a KMS key, those denies are absent and the bucket stays SSE-S3.
+
+There is no input for arbitrary extra policy statements, and no VPC-endpoint
+list. A browser import upload does not come from the customer's VPC endpoint,
+so denying object actions that lack `aws:SourceVpce` would reject the upload.
+A caller statement that reused a module Sid would replace that statement,
+including the object-access deny, and no customer statement is waiting on that
+input.
+
+`artifacts_kms_key_arn` and `artifacts_server_side_encryption_algorithm` are
+outputs. They are null when the bucket is not created. Randall marked the
+encryption outputs optional; they are included so a caller can pass the
+algorithm and key into the data plane without repeating the input.
+
+The OpenTofu state bucket now always declares encryption, still at
+`aws_s3_bucket_server_side_encryption_configuration.tofu_state[0]`. No `moved`
+block: the address does not change. SSE-S3 (`AES256`) when `kms_key_arn` is
+null, SSE-KMS with a bucket key when it is set, and SSE-C is blocked either
+way. A deployment that already set `kms_key_arn` will plan
+`bucket_key_enabled` from `false` to `true` and add the SSE-C block. A
+deployment that never set a key gains the encryption configuration. The KMS
+IAM statement is still attached only when `kms_key_arn` is set.
+
 ### App DB: the data plane must be able to reach its clusters
 
 `app-db` fails the plan when `physical_module_inputs` sets neither
@@ -112,9 +162,10 @@ matching value before the first apply. Creating the artifacts bucket requires
 `s3:PutBucketCORS`, `s3:PutBucketPolicy`, and `s3:PutEncryptionConfiguration`,
 and `s3:PutBucketPublicAccessBlock` unless `enable_public_access_blocks` is false.
 
-The existing `kms_key_arn` continues to configure the OpenTofu state bucket
-only, and only when it is set. `artifacts_kms_key_arn` independently configures
-customer data so a principal that can decrypt state cannot decrypt artifacts.
+`kms_key_arn` still selects encryption for the OpenTofu state bucket only.
+That configuration is now always declared; see the state-bucket encryption
+note above. `artifacts_kms_key_arn` independently configures customer data so
+a principal that can decrypt state cannot decrypt artifacts.
 
 ### App DB: Helm physicalModuleTags is inventory only
 
