@@ -74,6 +74,26 @@ run "an_image_older_than_v1_53_0_fails_the_plan" {
   expect_failures = [data.aws_region.current]
 }
 
+run "a_tag_with_a_digest_below_v1_53_0_fails_the_plan" {
+  command = plan
+
+  variables {
+    superblocks_agent_image = "ghcr.io/superblocksteam/agent:v1.46.0@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+
+  expect_failures = [data.aws_region.current]
+}
+
+run "a_suffixed_tag_below_v1_53_0_fails_the_plan" {
+  command = plan
+
+  variables {
+    superblocks_agent_image = "ghcr.io/superblocksteam/agent:1.46.0-fips"
+  }
+
+  expect_failures = [data.aws_region.current]
+}
+
 run "an_image_at_v1_53_0_plans" {
   command = plan
 

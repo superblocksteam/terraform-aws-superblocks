@@ -241,5 +241,5 @@ variable "physical_module_inputs" {
 variable "verify_infra_absence_enabled" {
   type        = bool
   default     = true
-  description = "Render the verify_database_infra_absence lifecycle operation, which lets an admin \"Mark as deleted\" a database whose retirement failed. Requires OPA image v1.53.0 or later; older images exit at startup when the operation is present, and the root module fails the plan when superblocks_agent_image is pinned below that version. Set false to keep an older OPA image until it can be upgraded."
+  description = "Render the verify_database_infra_absence lifecycle operation, which lets an admin \"Mark as deleted\" a database whose retirement failed. Requires OPA image v1.53.0 or later; older images exit at startup when the operation is present, and the root module fails the plan when superblocks_agent_image is pinned below that version. The plan check reads version tags only (v1.46.0, v1.46.0-fips, v1.46.0@sha256:...); if you pin by digest alone or by a custom tag, confirm the image is v1.53.0 or later. The check lives in the root module, so callers that use this module on its own or inject ecs_env_vars into their own task definition get no guard. Set false to keep an older OPA image until it can be upgraded."
 }

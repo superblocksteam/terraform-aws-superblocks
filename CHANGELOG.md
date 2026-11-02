@@ -12,8 +12,12 @@ infrastructure absence verification".
 
 OPA images before v1.53.0 exit at startup when the operation is present. The
 root module now fails the plan when the lifecycle config includes it and
-`superblocks_agent_image` is tagged below v1.53.0. Digests, `latest`, and other
-tags that are not a version are not checked. To upgrade gradually, set
+`superblocks_agent_image` is tagged below v1.53.0, including tags with a suffix
+or digest such as `v1.46.0-fips` or `v1.46.0@sha256:...`. Digest-only pins,
+`latest`, and other tags that are not a version are not checked, so confirm
+those are v1.53.0 or later. The check also does not cover callers who use
+`modules/app-db` on its own or inject `ecs_env_vars` into their own task
+definition. To upgrade gradually, set
 `verify_infra_absence_enabled = false` on `app-db`, upgrade the image, then
 remove the override. `examples/app-db-fargate` now pins `v1.53.0`.
 
