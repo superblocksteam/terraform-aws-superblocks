@@ -23,6 +23,12 @@ mock_provider "aws" {
     }
   }
 
+  mock_data "aws_iam_role" {
+    defaults = {
+      arn = "arn:aws:iam::123456789012:role/existing-worker"
+    }
+  }
+
   mock_resource "aws_s3_bucket" {
     defaults = {
       arn = "arn:aws:s3:::mock"
@@ -237,6 +243,22 @@ run "object_access_is_scoped_to_the_agent_profile_token" {
     ], "ArtifactsBucketKms")
     error_message = "Without artifacts_kms_key_arn the policy must not grant KMS permissions."
   }
+
+  assert {
+    condition = (
+      output.artifacts_server_side_encryption_algorithm == "AES256" &&
+      output.artifacts_kms_key_arn == null &&
+      !contains([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        try(statement.Sid, "")
+      ], "DenyIncorrectEncryptionAlgorithm") &&
+      !contains([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        try(statement.Sid, "")
+      ], "DenyIncorrectEncryptionKey")
+    )
+    error_message = "Without artifacts_kms_key_arn the bucket must use SSE-S3 and must not deny encryption headers."
+  }
 }
 
 run "kms_decrypt_is_granted_when_a_customer_managed_key_is_set" {
@@ -286,6 +308,34 @@ run "kms_decrypt_is_granted_when_a_customer_managed_key_is_set" {
       r.blocked_encryption_types
     ])) == toset(["SSE-C"])
     error_message = "SSE-KMS on artifacts must still block SSE-C."
+  }
+
+  assert {
+    condition = (
+      output.artifacts_server_side_encryption_algorithm == "aws:kms" &&
+      output.artifacts_kms_key_arn == "arn:aws:kms:us-east-1:123456789012:key/mrk-artifacts" &&
+      one([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        statement.Condition.Null["s3:x-amz-server-side-encryption"]
+        if statement.Sid == "DenyIncorrectEncryptionAlgorithm"
+      ]) == "false" &&
+      one([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        statement.Condition.StringNotEquals["s3:x-amz-server-side-encryption"]
+        if statement.Sid == "DenyIncorrectEncryptionAlgorithm"
+      ]) == "aws:kms" &&
+      one([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        statement.Condition.Null["s3:x-amz-server-side-encryption-aws-kms-key-id"]
+        if statement.Sid == "DenyIncorrectEncryptionKey"
+      ]) == "false" &&
+      one([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        statement.Condition.StringNotEquals["s3:x-amz-server-side-encryption-aws-kms-key-id"]
+        if statement.Sid == "DenyIncorrectEncryptionKey"
+      ]) == "arn:aws:kms:us-east-1:123456789012:key/mrk-artifacts"
+    )
+    error_message = "A KMS key must deny PutObject whose encryption headers name a different algorithm or key."
   }
 }
 
@@ -419,6 +469,14 @@ run "the_artifacts_bucket_is_omitted_by_default" {
 
   assert {
     condition = (
+      output.artifacts_kms_key_arn == null &&
+      output.artifacts_server_side_encryption_algorithm == null
+    )
+    error_message = "Encryption outputs must be null when the artifacts bucket is not created."
+  }
+
+  assert {
+    condition = (
       length(aws_iam_policy.artifacts) == 0 &&
       length(aws_iam_role_policy_attachment.lifecycle_worker_artifacts) == 0 &&
       length(aws_s3_bucket_public_access_block.artifacts) == 0 &&
@@ -543,4 +601,121 @@ run "nested_effective_artifact_prefixes_are_rejected" {
   }
 
   expect_failures = [var.agents]
+}
+
+run "object_access_is_denied_except_for_lifecycle_workers" {
+  command = plan
+
+  assert {
+    condition = (
+      toset(flatten([
+        one([
+          for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+          statement.Action if statement.Sid == "DenyObjectAccessExceptLifecycleWorkers"
+        ])
+        ])) == toset([
+        "s3:AbortMultipartUpload",
+        "s3:DeleteObject",
+        "s3:GetObject",
+        "s3:ListMultipartUploadParts",
+        "s3:PutObject",
+      ]) &&
+      one([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        statement.Resource if statement.Sid == "DenyObjectAccessExceptLifecycleWorkers"
+      ]) == "arn:aws:s3:::sb-data-artifacts-us-east-1-123456789012/*" &&
+      toset(flatten([
+        one([
+          for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+          statement.Condition.ArnNotEquals["aws:PrincipalArn"]
+          if statement.Sid == "DenyObjectAccessExceptLifecycleWorkers"
+        ])
+      ])) == toset(["arn:aws:iam::123456789012:role/mock"])
+    )
+    error_message = "Object actions must be denied unless the caller is a lifecycle worker role."
+  }
+
+  assert {
+    condition = one([
+      for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+      statement.Condition.StringNotEquals["s3:signatureversion"]
+      if statement.Sid == "DenySignatureVersionOtherThanSigV4"
+    ]) == "AWS4-HMAC-SHA256"
+    error_message = "The artifacts bucket must deny requests that are not Signature Version 4."
+  }
+
+  assert {
+    condition = !contains([
+      for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+      try(statement.Sid, "")
+    ], "DenyObjectAccessOutsideVpce")
+    error_message = "The artifacts bucket policy must not deny object access based on a VPC endpoint."
+  }
+}
+
+run "an_existing_role_and_an_exempt_principal_may_access_objects" {
+  command = plan
+
+  variables {
+    artifacts_object_access_exempt_principal_arns = [
+      "arn:aws:iam::123456789012:role/break-glass",
+    ]
+    agents = {
+      opa1 = {
+        agent_tags         = ["nonprod"]
+        existing_role_name = "existing-worker"
+        vpc_id             = "vpc-0123456789abcdef0"
+      }
+    }
+  }
+
+  assert {
+    condition = toset(flatten([
+      one([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        statement.Condition.ArnNotEquals["aws:PrincipalArn"]
+        if statement.Sid == "DenyObjectAccessExceptLifecycleWorkers"
+      ])
+      ])) == toset([
+      "arn:aws:iam::123456789012:role/break-glass",
+      "arn:aws:iam::123456789012:role/existing-worker",
+    ])
+    error_message = "The object-access deny must exempt the existing lifecycle role and the caller-supplied ARN."
+  }
+}
+
+run "object_access_deny_can_be_disabled" {
+  command = plan
+
+  variables {
+    restrict_artifacts_object_access = false
+  }
+
+  assert {
+    condition = (
+      !contains([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        try(statement.Sid, "")
+      ], "DenyObjectAccessExceptLifecycleWorkers") &&
+      contains([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        try(statement.Sid, "")
+      ], "DenyInsecureTransport") &&
+      contains([
+        for statement in jsondecode(aws_s3_bucket_policy.artifacts[0].policy).Statement :
+        try(statement.Sid, "")
+      ], "DenySignatureVersionOtherThanSigV4")
+    )
+    error_message = "restrict_artifacts_object_access = false must drop only the object-access deny."
+  }
+}
+
+run "wildcard_exempt_principals_are_rejected" {
+  command = plan
+
+  variables {
+    artifacts_object_access_exempt_principal_arns = ["arn:aws:iam::123456789012:role/*"]
+  }
+
+  expect_failures = [var.artifacts_object_access_exempt_principal_arns]
 }

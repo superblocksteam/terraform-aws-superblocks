@@ -87,6 +87,9 @@ module "app_db_prereqs" {
   # The artifacts bucket is off unless this is true. Once created it cannot be
   # deleted by a later apply. CORS then allows https://<superblocks_agent_data_domain>
   # (app.superblocks.com or eu.superblocks.com). Set allowed_origins to replace that origin.
+  # Object actions are denied except for lifecycle worker roles. Add a break-glass
+  # role with artifacts_object_access_exempt_principal_arns, or set
+  # restrict_artifacts_object_access = false to drop that deny.
   create_artifacts_bucket       = true
   superblocks_agent_data_domain = "app.superblocks.com"
 
@@ -137,6 +140,16 @@ output "agents" {
 output "artifacts_bucket_name" {
   value       = module.app_db_prereqs.artifacts_bucket_name
   description = "S3 bucket for data artifacts (imports, exports, and later kinds). One bucket shared by every agent in this apply. Pass to OPA Helm as artifacts.bucket (top-level, not under databaseLifecycle), with artifacts.keyPrefix set to that agent's artifacts_key_prefix, artifacts.region set to this apply's region, and artifacts.kmsKeyArn set to artifacts_kms_key_arn when you configured one."
+}
+
+output "artifacts_kms_key_arn" {
+  value       = module.app_db_prereqs.artifacts_kms_key_arn
+  description = "KMS key ARN for the artifacts bucket, or null when it uses SSE-S3. Pass to OPA Helm as artifacts.kmsKeyArn."
+}
+
+output "artifacts_server_side_encryption_algorithm" {
+  value       = module.app_db_prereqs.artifacts_server_side_encryption_algorithm
+  description = "SSE algorithm on the artifacts bucket (AES256 or aws:kms), or null when the bucket is not created."
 }
 
 output "enhanced_monitoring_role_arn" {

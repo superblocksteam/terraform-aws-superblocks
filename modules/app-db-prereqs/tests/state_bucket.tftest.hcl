@@ -1,5 +1,6 @@
-# Shared state bucket: each worker may only touch app-db/<agent>/. Without a
-# CMK the bucket is SSE-S3, so the policy must not attach a KMS Resource:*.
+# Shared state bucket: each worker may only touch app-db/<agent>/. Encryption
+# is always declared: SSE-S3 unless kms_key_arn is set, and SSE-C is blocked.
+# Without a CMK the policy must not attach a KMS statement.
 
 mock_provider "aws" {
   mock_data "aws_caller_identity" {
@@ -97,6 +98,25 @@ run "state_access_is_scoped_per_agent" {
   assert {
     condition     = output.agents["opa1"].key_prefix == "app-db/opa1"
     error_message = "agents[].key_prefix must match the IAM-granted state prefix."
+  }
+
+  assert {
+    condition = (
+      length(aws_s3_bucket_server_side_encryption_configuration.tofu_state) == 1 &&
+      one([
+        for r in aws_s3_bucket_server_side_encryption_configuration.tofu_state[0].rule :
+        one(r.apply_server_side_encryption_by_default).sse_algorithm
+      ]) == "AES256" &&
+      one([
+        for r in aws_s3_bucket_server_side_encryption_configuration.tofu_state[0].rule :
+        r.bucket_key_enabled
+      ]) == false &&
+      toset(one([
+        for r in aws_s3_bucket_server_side_encryption_configuration.tofu_state[0].rule :
+        r.blocked_encryption_types
+      ])) == toset(["SSE-C"])
+    )
+    error_message = "Without kms_key_arn the state bucket must declare SSE-S3 and block SSE-C."
   }
 }
 
@@ -206,5 +226,27 @@ run "kms_is_scoped_to_the_configured_key" {
       statement.Resource if statement.Sid == "StateBucketKms"
     ]) == "arn:aws:kms:us-east-1:123456789012:key/mrk-test"
     error_message = "State-bucket KMS actions must name the configured customer-managed key."
+  }
+
+  assert {
+    condition = (
+      one([
+        for r in aws_s3_bucket_server_side_encryption_configuration.tofu_state[0].rule :
+        one(r.apply_server_side_encryption_by_default).sse_algorithm
+      ]) == "aws:kms" &&
+      one([
+        for r in aws_s3_bucket_server_side_encryption_configuration.tofu_state[0].rule :
+        one(r.apply_server_side_encryption_by_default).kms_master_key_id
+      ]) == "arn:aws:kms:us-east-1:123456789012:key/mrk-test" &&
+      one([
+        for r in aws_s3_bucket_server_side_encryption_configuration.tofu_state[0].rule :
+        r.bucket_key_enabled
+      ]) == true &&
+      toset(one([
+        for r in aws_s3_bucket_server_side_encryption_configuration.tofu_state[0].rule :
+        r.blocked_encryption_types
+      ])) == toset(["SSE-C"])
+    )
+    error_message = "kms_key_arn must select SSE-KMS with that key, enable a bucket key, and still block SSE-C."
   }
 }

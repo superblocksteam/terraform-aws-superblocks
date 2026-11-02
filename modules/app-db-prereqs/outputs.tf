@@ -16,6 +16,16 @@ output "artifacts_bucket_name" {
   description = "Name of the long-lived S3 bucket for data artifacts (imports, exports, and later kinds), or null when create_artifacts_bucket is false. One bucket per module invocation, shared by every agent pointed at it. Objects are partitioned by agents[].artifacts_key_prefix (optional namespace) then profile token; the orchestrator deletes what it is done with. A null or empty value means the OPA does not offer import or export. EKS: Helm artifacts.bucket (top-level, not under databaseLifecycle). Fargate: pass as artifacts_bucket_name to modules/app-db, which emits SUPERBLOCKS_ARTIFACTS_BUCKET and SUPERBLOCKS_ARTIFACTS_REGION."
 }
 
+output "artifacts_kms_key_arn" {
+  value       = var.create_artifacts_bucket ? var.artifacts_kms_key_arn : null
+  description = "Customer-managed KMS key ARN configured for the artifacts bucket, or null when the bucket uses SSE-S3 or is not created. Optional companion to artifacts_server_side_encryption_algorithm. Fargate: pass to modules/app-db as artifacts_kms_key_arn. EKS: pass as Helm artifacts.kmsKeyArn."
+}
+
+output "artifacts_server_side_encryption_algorithm" {
+  value       = var.create_artifacts_bucket ? (var.artifacts_kms_key_arn == null ? "AES256" : "aws:kms") : null
+  description = "SSE algorithm on the artifacts bucket (AES256 or aws:kms), or null when the bucket is not created. The data plane uses this when it sets the upload encryption header. Callers that set artifacts_kms_key_arn already know that key; this output names the algorithm that matches it."
+}
+
 output "enhanced_monitoring_role_arn" {
   value       = local.monitoring_role_arn
   description = "ARN of the account-level RDS Enhanced Monitoring role. Pass this to the physical database modules as monitoring_role_arn (for example via databaseLifecycle.physicalModuleInputs); without it they reject monitoring_interval > 0 at plan time."
