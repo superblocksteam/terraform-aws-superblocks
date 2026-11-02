@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Breaking: App DB requires OPA v1.53.0 unless verify_infra_absence_enabled = false
+
+`app-db` now renders the `verify_database_infra_absence` operation (backend
+`native_runner`) by default, matching the Helm chart. Without it a Fargate OPA
+never advertised the operation, so marking a database deleted after a failed
+retirement was refused with "No active owning App Database agent supports
+infrastructure absence verification".
+
+OPA images before v1.53.0 exit at startup when the operation is present. The
+root module now fails the plan when the lifecycle config includes it and
+`superblocks_agent_image` is tagged below v1.53.0, including tags with a suffix
+or digest such as `v1.46.0-fips` or `v1.46.0@sha256:...`. Digest-only pins,
+`latest`, and other tags that are not a version are not checked, so confirm
+those are v1.53.0 or later. The check also does not cover callers who use
+`modules/app-db` on its own or inject `ecs_env_vars` into their own task
+definition. To upgrade gradually, set
+`verify_infra_absence_enabled = false` on `app-db`, upgrade the image, then
+remove the override. `examples/app-db-fargate` now pins `v1.53.0`.
+
+The root module now requires Terraform or OpenTofu 1.2 or later, for the plan
+check above.
+
+`app-db` also sets `SUPERBLOCKS_DATABASE_LIFECYCLE_DISPATCH_WATCH_ENABLED=true`,
+the Helm default. The worker leaves the watch off when the variable is unset,
+so Fargate OPAs polled every 30 seconds for work that EKS OPAs claimed at once.
+Images before v1.51.0 ignore the variable and keep polling.
+
 ## v1.6.0
 
 ### App DB prereqs: artifacts object access, signature version, and state encryption

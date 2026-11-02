@@ -136,7 +136,7 @@ locals {
     }
   }
 
-  lifecycle_operations = {
+  base_lifecycle_operations = {
     ensure_database = {
       backend = "terraform"
       physicalDatabase = {
@@ -176,15 +176,27 @@ locals {
     }
   }
 
+  # Admin "Mark as deleted" on a failed retire queues this operation and
+  # refuses unless the owning OPA advertises it. It runs natively and needs no
+  # Terraform root. Images before v1.53.0 accept native_runner only for
+  # migrate_schema and exit at startup, so operators still on one can opt out.
+  lifecycle_operations = merge(
+    local.base_lifecycle_operations,
+    var.verify_infra_absence_enabled ? {
+      verify_database_infra_absence = { backend = "native_runner" }
+    } : {}
+  )
+
   # One configuration per OPA: engines and operations sit at the document root.
   # The profiles this OPA serves are deliberately absent — they are declared
   # once as agent tags, and the worker rejects a profiles key here outright so
   # the two can never disagree.
   #
-  # Requires OPA image v1.46.0 or later. Older images still expect an `entries`
-  # array and exit at startup with "database lifecycle config entries are
-  # required". Pin superblocks_agent_image when wiring ecs_env_vars into the
-  # root module (see examples/app-db-fargate).
+  # Requires OPA image v1.53.0 or later (v1.46.0 or later with
+  # verify_infra_absence_enabled = false). Images before v1.46.0 still expect
+  # an `entries` array and exit at startup with "database lifecycle config
+  # entries are required". Pin superblocks_agent_image when wiring
+  # ecs_env_vars into the root module (see examples/app-db-fargate).
   lifecycle_config = {
     engines    = ["postgres"]
     operations = local.lifecycle_operations
@@ -243,6 +255,13 @@ locals {
     {
       name  = "SUPERBLOCKS_DATABASE_LIFECYCLE_POLL_INTERVAL"
       value = "30s"
+    },
+    # The worker leaves the dispatch watch off when this is unset and falls
+    # back to polling. Helm enables it by default; match that so Fargate OPAs
+    # claim work as soon as the control plane publishes it.
+    {
+      name  = "SUPERBLOCKS_DATABASE_LIFECYCLE_DISPATCH_WATCH_ENABLED"
+      value = "true"
     },
     # SUPERBLOCKS_DATABASE_LIFECYCLE_ALLOWED_RESOURCE_TYPES is deliberately
     # unset. The worker's own default mirrors the resource graph of the modules
