@@ -19,37 +19,25 @@ are evaluated as the worker that signed them. An identity policy that allows
 object writes does not override this bucket deny.
 
 The same policy always denies requests whose `s3:signatureversion` is not
-`AWS4-HMAC-SHA256`. A request that omits the signature version is denied,
-because `StringNotEquals` matches a missing key. Presigned uploads and other
-SigV4 requests send the version.
+`AWS4-HMAC-SHA256`. A request that omits the signature version is denied.
+Presigned uploads and other SigV4 requests send the version.
 
 When `artifacts_kms_key_arn` is set, `PutObject` is denied when the encryption
 algorithm header is present and is not `aws:kms`, and denied again when the
 KMS key id header is present and is not that full key ARN. The data plane must
-send that ARN. A key ID or an alias does not match. Each check requires the
-header to be present (`Null` = false) before comparing it. `UploadPart` cannot
-send those headers. Encryption is set on `CreateMultipartUpload`, and a missing
-header is not denied. `StringNotEqualsIfExists` would deny the missing header.
-Without a KMS key, those denies are absent and the bucket stays SSE-S3.
-
-There is no input for arbitrary extra policy statements, and no VPC-endpoint
-list. A browser import upload does not come from the customer's VPC endpoint,
-so denying object actions that lack `aws:SourceVpce` would reject the upload.
-A caller statement that reused a module Sid would replace that statement,
-including the object-access deny, and no customer statement is waiting on that
-input.
+send that ARN. A key ID or an alias does not match. `UploadPart` cannot send
+those headers. Encryption is set on `CreateMultipartUpload`, and a missing
+header is not denied. Without a KMS key, those denies are absent and the
+bucket stays SSE-S3.
 
 `artifacts_kms_key_arn` and `artifacts_server_side_encryption_algorithm` are
-outputs. They are null when the bucket is not created. Randall marked the
-encryption outputs optional; they are included so a caller can pass the
+outputs. They are null when the bucket is not created. A caller can pass the
 algorithm and key into the data plane without repeating the input.
 
-The OpenTofu state bucket now always declares encryption, still at
-`aws_s3_bucket_server_side_encryption_configuration.tofu_state[0]`. No `moved`
-block: the address does not change. SSE-S3 (`AES256`) when `kms_key_arn` is
-null, SSE-KMS with a bucket key when it is set, and SSE-C is blocked either
-way. A deployment that already set `kms_key_arn` will plan
-`bucket_key_enabled` from `false` to `true` and add the SSE-C block. A
+The OpenTofu state bucket now always declares encryption. SSE-S3 (`AES256`)
+when `kms_key_arn` is null, SSE-KMS with a bucket key when it is set, and
+SSE-C is blocked either way. A deployment that already set `kms_key_arn` will
+plan `bucket_key_enabled` from `false` to `true` and add the SSE-C block. A
 deployment that never set a key gains the encryption configuration. The KMS
 IAM statement is still attached only when `kms_key_arn` is set.
 
@@ -61,9 +49,8 @@ chart. Each cluster admits port 5432 only from those two lists, so a caller
 that set neither got clusters the OPA could not connect to. A `null` element
 in either `source_security_group_ids` or `allowed_cidr_blocks` is rejected
 too. For security groups, that is what the root module's
-`ecs_security_group_id` output holds when `create_ecs_sg = false`. A null
-CIDR is the same hole: the list is non-empty, so a length check would count
-it. Callers who already pass one of the two lists see no change.
+`ecs_security_group_id` output holds when `create_ecs_sg = false`. Callers
+who already pass one of the two lists see no change.
 
 `examples/app-db-fargate` now wires `source_security_group_ids` from the root
 module's `ecs_security_group_id` output. The pre-created group it used to call
