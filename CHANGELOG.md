@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.6.0
+
 ### App DB prereqs: artifacts object access, signature version, and state encryption
 
 When the artifacts bucket exists, its policy now denies object actions
@@ -14,8 +16,7 @@ the account root. To break glass, add that role ARN to the exempt list, apply,
 then remove it. Bucket-level actions stay allowed, so the deploy role can
 still manage CORS, lifecycle, and the bucket policy. Presigned browser uploads
 are evaluated as the worker that signed them. An identity policy that allows
-object writes, including a name-scoped `S3BucketMutate` grant, does not
-override this bucket deny.
+object writes does not override this bucket deny.
 
 The same policy always denies requests whose `s3:signatureversion` is not
 `AWS4-HMAC-SHA256`. A request that omits the signature version is denied,
@@ -175,6 +176,8 @@ Requires Helm chart 2.69.1+ and packaged physical modules v0.4.10.
 ### App DB: pool.min_available_capacity_percent
 
 Default 20, rendered as `physicalDatabase.minAvailableCapacityPercent`.
+
+## v1.5.3
 
 ### App DB prereqs: authorize tagged security-group rule creation
 
