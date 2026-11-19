@@ -216,21 +216,28 @@ locals {
   # ----------------------------------------------------------------
   oidc_provider_urls = {
     for k, agent in var.agents : k =>
-    var.deployment_type == "eks"
+    var.deployment_type == "eks" && agent.oidc_provider_arn != null
     ? replace(agent.oidc_provider_arn, "/^arn:aws:iam::[0-9]+:oidc-provider\\//", "")
     : ""
   }
 
   # ----------------------------------------------------------------
   # Per-agent trust policies for the lifecycle worker role.
-  # EKS uses OIDC web identity; Fargate uses ECS task service principal.
+  # EKS trusts Pod Identity when pod_identity_cluster_name is set and OIDC
+  # web identity when oidc_provider_arn is set; both while migrating.
+  # Fargate uses ECS task service principal.
   # ----------------------------------------------------------------
   lifecycle_worker_assume_role_policies = {
     for k, agent in var.agents : k =>
     var.deployment_type == "eks" ? jsonencode({
       Version = "2012-10-17"
-      Statement = [
-        {
+      Statement = concat(
+        agent.pod_identity_cluster_name == null ? [] : [{
+          Effect    = "Allow"
+          Action    = ["sts:AssumeRole", "sts:TagSession"]
+          Principal = { Service = "pods.eks.amazonaws.com" }
+        }],
+        agent.oidc_provider_arn == null ? [] : [{
           Effect    = "Allow"
           Action    = "sts:AssumeRoleWithWebIdentity"
           Principal = { Federated = agent.oidc_provider_arn }
@@ -242,8 +249,8 @@ locals {
               "${local.oidc_provider_urls[k]}:sub" = "system:serviceaccount:${agent.namespace}:${agent.service_account_name}"
             }
           }
-        }
-      ]
+        }],
+      )
       }) : jsonencode({
       Version = "2012-10-17"
       Statement = [
@@ -316,6 +323,34 @@ resource "aws_iam_role" "lifecycle_worker" {
   permissions_boundary = var.permissions_boundary
 
   tags = local.tags
+
+  lifecycle {
+    precondition {
+      condition     = var.deployment_type != "eks" || each.value.oidc_provider_arn != null || each.value.pod_identity_cluster_name != null
+      error_message = "An EKS agent needs oidc_provider_arn, pod_identity_cluster_name, or both."
+    }
+  }
+}
+
+# Session tags off: Pod Identity tags are transitive, and the connector role
+# trust does not allow sts:TagSession, so tagged sessions cannot assume it.
+resource "aws_eks_pod_identity_association" "lifecycle_worker" {
+  for_each = { for k, agent in var.agents : k => agent if agent.pod_identity_cluster_name != null }
+
+  cluster_name         = each.value.pod_identity_cluster_name
+  namespace            = each.value.namespace
+  service_account      = each.value.service_account_name
+  role_arn             = local.agent_role_arns[each.key]
+  disable_session_tags = true
+
+  tags = local.tags
+
+  lifecycle {
+    precondition {
+      condition     = var.deployment_type == "eks"
+      error_message = "pod_identity_cluster_name requires deployment_type \"eks\"."
+    }
+  }
 }
 
 # ----------------------------------------------------------------

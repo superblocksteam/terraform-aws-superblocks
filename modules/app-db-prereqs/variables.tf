@@ -20,17 +20,18 @@ variable "region" {
 
 variable "agents" {
   type = map(object({
-    agent_tags             = list(string)
-    vpc_id                 = string
-    oidc_provider_arn      = optional(string)
-    namespace              = optional(string, "superblocks")
-    service_account_name   = optional(string, "superblocks-agent")
-    artifacts_key_prefix   = optional(string)
-    existing_role_name     = optional(string)
-    key_prefix             = optional(string)
-    rds_secret_kms_key_arn = optional(string)
+    agent_tags                = list(string)
+    vpc_id                    = string
+    oidc_provider_arn         = optional(string)
+    pod_identity_cluster_name = optional(string)
+    namespace                 = optional(string, "superblocks")
+    service_account_name      = optional(string, "superblocks-agent")
+    artifacts_key_prefix      = optional(string)
+    existing_role_name        = optional(string)
+    key_prefix                = optional(string)
+    rds_secret_kms_key_arn    = optional(string)
   }))
-  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket and, when create_artifacts_bucket is true, one artifacts bucket per module invocation. State access is scoped to key_prefix (default app-db/<agent>). artifacts_key_prefix is an optional namespace passed to the OPA as artifacts.keyPrefix when more than one agent shares the bucket (unset for a typical OPA). Object keys are [<that prefix>/]<profileToken>/<kind>/...; Terraform does not name the kind. Pass agents[<name>].key_prefix into the app-db module."
+  description = "Map of OPA agent configurations keyed by agent name. The map key is the agent name — used to name IAM roles and must be unique per AWS account. Each agent gets its own lifecycle worker role (or attaches to an existing one via existing_role_name) and connector role; all agents share one S3 state bucket and, when create_artifacts_bucket is true, one artifacts bucket per module invocation. State access is scoped to key_prefix (default app-db/<agent>). artifacts_key_prefix is an optional namespace passed to the OPA as artifacts.keyPrefix when more than one agent shares the bucket (unset for a typical OPA). Object keys are [<that prefix>/]<profileToken>/<kind>/...; Terraform does not name the kind. Pass agents[<name>].key_prefix into the app-db module. On EKS the lifecycle worker uses IRSA through oidc_provider_arn, or EKS Pod Identity when pod_identity_cluster_name is set: the module then creates the pod identity association for namespace/service_account_name on that cluster, which needs the eks-pod-identity-agent add-on. Set both while moving running pods from IRSA to Pod Identity, then drop oidc_provider_arn."
 
   validation {
     condition     = length(var.agents) > 0
