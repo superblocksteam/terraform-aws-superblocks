@@ -4,15 +4,20 @@
 
 ### App DB prereqs: optional EKS Pod Identity for the lifecycle worker
 
-An EKS agent in `app-db-prereqs` can set `pod_identity_cluster_name` instead of
-`oidc_provider_arn`. The lifecycle worker role then trusts
-`pods.eks.amazonaws.com`, and the module creates the pod identity association
-for the agent's `namespace` and `service_account_name` on that cluster, with
-session tags disabled. Pod Identity session tags are transitive, and the
-connector role does not allow `sts:TagSession`, so a tagged session could not
-assume it. The cluster needs the `eks-pod-identity-agent` add-on, and the
-service account must not keep an `eks.amazonaws.com/role-arn` annotation,
-because the SDK tries web identity first. IRSA stays the default.
+An EKS agent in `app-db-prereqs` can set `pod_identity_cluster_name`. The
+lifecycle worker role then trusts `pods.eks.amazonaws.com`, and the module
+creates the pod identity association for the agent's `namespace` and
+`service_account_name` on that cluster, with session tags disabled. Pod
+Identity session tags are transitive, and the connector role does not allow
+`sts:TagSession`, so a tagged session could not assume it. The cluster needs
+the `eks-pod-identity-agent` add-on, and the service account must not keep an
+`eks.amazonaws.com/role-arn` annotation, because the SDK tries web identity
+first. IRSA stays the default.
+
+To move running pods without a gap, set both `oidc_provider_arn` and
+`pod_identity_cluster_name`: the role trusts both until pods restart onto Pod
+Identity. Then remove `oidc_provider_arn`. An EKS agent with neither now fails
+at plan.
 
 ### Breaking: App DB requires OPA v1.53.0 unless verify_infra_absence_enabled = false
 

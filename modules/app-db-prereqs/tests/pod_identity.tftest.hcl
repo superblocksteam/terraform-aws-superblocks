@@ -85,7 +85,8 @@ run "pod_identity_association_disables_session_tags" {
   }
 }
 
-run "pod_identity_rejects_oidc_provider_arn" {
+# Both set: pods keep their IRSA session until they restart onto Pod Identity.
+run "migrating_agent_trusts_both" {
   command = plan
 
   variables {
@@ -99,7 +100,36 @@ run "pod_identity_rejects_oidc_provider_arn" {
     }
   }
 
-  expect_failures = [var.agents]
+  assert {
+    condition = [
+      for s in jsondecode(aws_iam_role.lifecycle_worker["both"].assume_role_policy).Statement :
+      try(s.Principal.Service, s.Principal.Federated)
+      ] == [
+      "pods.eks.amazonaws.com",
+      "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE1234567890",
+    ]
+    error_message = "An agent with both settings must trust Pod Identity and its IRSA provider."
+  }
+
+  assert {
+    condition     = keys(aws_eks_pod_identity_association.lifecycle_worker) == ["both"]
+    error_message = "A migrating agent still gets its pod identity association."
+  }
+}
+
+run "eks_agent_needs_an_identity" {
+  command = plan
+
+  variables {
+    agents = {
+      none = {
+        agent_tags = ["production"]
+        vpc_id     = "vpc-0123456789abcdef0"
+      }
+    }
+  }
+
+  expect_failures = [aws_iam_role.lifecycle_worker]
 }
 
 run "pod_identity_requires_eks" {
